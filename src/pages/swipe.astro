@@ -1,0 +1,40 @@
+---
+// Phase 2, Task 6. Always room-scoped (?room=CODE) in this phase -- solo
+// swiping without a room is explicitly deferred (see build-log SKILL.md's
+// Phase 4 line item), so a missing/invalid code just bounces to /rooms
+// rather than falling back to a solo deck the way the reference app did.
+//
+// export const prerender = false is required here, not optional: this page
+// reads Astro.url.searchParams at request time to decide whether to
+// redirect. Astro's default static output prerenders the page once at
+// *build* time, when there is no query string at all -- that would bake in
+// a permanent redirect to /rooms regardless of what ?room=CODE a real
+// request carries, silently breaking every /swipe?room=XXXX link. Needs
+// the @astrojs/node adapter already configured in astro.config.mjs for
+// this per-request render to work, same as login.astro/signup.astro.
+export const prerender = false;
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { SwipeArea } from "../components/swipe/swipe-area";
+import { Toaster } from "../components/ui/toaster";
+
+const roomCode = Astro.url.searchParams.get("room");
+if (!roomCode || roomCode.trim().length !== 4) {
+  return Astro.redirect("/rooms");
+}
+---
+
+<BaseLayout title={`Swipe · Room ${roomCode}`} description="Swipe on cuisines with your group.">
+  <div class="flex flex-col items-center w-full min-h-screen pt-12 pb-8 bg-background">
+    <div class="text-center mb-8 px-4">
+      <h1 class="text-3xl md:text-4xl font-headline">Craving Match: Room {roomCode}</h1>
+      <p class="text-muted-foreground mt-2">
+        Swipe right for YES! As soon as everyone in the room likes a cuisine, it's a MATCH!
+      </p>
+    </div>
+    <div class="w-full flex justify-center px-4">
+      <SwipeArea roomCode={roomCode} client:load />
+    </div>
+  </div>
+  <Toaster client:load />
+</BaseLayout>

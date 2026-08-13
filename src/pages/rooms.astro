@@ -1,0 +1,17 @@
+---
+// Phase 2, Task 1. Static shell hosting the RoomsDashboard React island --
+// auth checking and all room state live client-side (see
+// src/components/rooms/rooms-dashboard.tsx), so this page itself needs no
+// server-side auth check the way login.astro/signup.astro do, and stays on
+// Astro's default static/prerendered output.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { RoomsDashboard } from "../components/rooms/rooms-dashboard";
+import { Toaster } from "../components/ui/toaster";
+---
+
+<BaseLayout title="Swipe Rooms · Food Swipe" description="Host or join a group swipe room.">
+  <div class="min-h-screen bg-background py-12">
+    <RoomsDashboard client:load />
+  </div>
+  <Toaster client:load />
+</BaseLayout>

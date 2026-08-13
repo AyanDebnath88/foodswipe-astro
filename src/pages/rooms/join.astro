@@ -1,0 +1,17 @@
+---
+// Phase 2, Task 1: shareable deep link target (/rooms/join?code=XXXX).
+// The JoinByLink island reads `?code=` from window.location itself (see
+// its own comment) rather than this page threading it through as a prop,
+// so this page needs no server-side query-string read and can stay on
+// Astro's default static/prerendered output.
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { JoinByLink } from "../../components/rooms/join-by-link";
+import { Toaster } from "../../components/ui/toaster";
+---
+
+<BaseLayout title="Join Room · Food Swipe" description="Join a Food Swipe group swiping room.">
+  <div class="min-h-screen bg-background">
+    <JoinByLink client:load />
+  </div>
+  <Toaster client:load />
+</BaseLayout>

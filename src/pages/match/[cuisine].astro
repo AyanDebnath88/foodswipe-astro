@@ -1,0 +1,25 @@
+---
+// Phase 2, Task 8. Dynamic route (:cuisine is runtime data, not known at
+// build time), so this opts out of static prerendering the same way
+// login.astro/signup.astro do -- see astro.config.mjs's node adapter,
+// installed for exactly this.
+export const prerender = false;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { MatchReveal } from "../../components/match/match-reveal";
+import { Toaster } from "../../components/ui/toaster";
+
+const { cuisine } = Astro.params;
+const roomCode = Astro.url.searchParams.get("room");
+
+if (!cuisine || !roomCode || roomCode.trim().length !== 4) {
+  return Astro.redirect("/rooms");
+}
+---
+
+<BaseLayout title="It's a Match! · Food Swipe" description="Your group matched on a cuisine.">
+  <div class="min-h-screen bg-background">
+    <MatchReveal cuisineId={cuisine} roomCode={roomCode} client:load />
+  </div>
+  <Toaster client:load />
+</BaseLayout>

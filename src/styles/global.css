@@ -91,3 +91,27 @@
     color: hsl(var(--foreground));
   }
 }
+
+/*
+ * Phase 2 (swipe deck): card-exit animations, ported from the reference
+ * Next.js project's tailwind.config.ts `keyframes`/`animation` extension.
+ * That project used Tailwind v3's JS config; this one is Tailwind v4
+ * (CSS-first config via @theme above), which doesn't read tailwind.config.ts
+ * at all -- so the same keyframes are defined as plain CSS here instead of
+ * trying to route them through @theme (arbitrary multi-step keyframes don't
+ * map cleanly onto @theme's single-value tokens).
+ */
+@keyframes swipe-out-left {
+  from { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
+  to { transform: translateX(-200%) rotate(-20deg) scale(0.8); opacity: 0; }
+}
+@keyframes swipe-out-right {
+  from { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
+  to { transform: translateX(200%) rotate(20deg) scale(0.8); opacity: 0; }
+}
+.animate-swipe-out-left {
+  animation: swipe-out-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.animate-swipe-out-right {
+  animation: swipe-out-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
