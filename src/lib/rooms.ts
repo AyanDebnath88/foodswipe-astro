@@ -25,16 +25,7 @@ export interface Participant {
   isGuest: boolean;
 }
 
-const ROOM_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const STORAGE_KEY = "foodswipe_active_room";
-
-function generateRoomCode(): string {
-  let code = "";
-  for (let i = 0; i < 4; i++) {
-    code += ROOM_CODE_CHARS.charAt(Math.floor(Math.random() * ROOM_CODE_CHARS.length));
-  }
-  return code;
-}
 
 // ---------------------------------------------------------------------------
 // localStorage convenience cache (Task 1's "waiting-room" resume UX, mirrors
@@ -88,64 +79,31 @@ const ROOM_COLUMNS =
 // Create
 // ---------------------------------------------------------------------------
 /**
- * Creates a room directly via two inserts (swipe_sessions, then
- * room_participants for the creator).
+ * Creates a room via the create_room() RPC
+ * (supabase/migrations/0010_fix_create_room_codegen.sql).
  *
- * The room id is generated client-side (crypto.randomUUID()) instead of
- * relying on swipe_sessions' default gen_random_uuid() and reading it back
- * with `.select()`. Reading it back would need the
- * "swipe_sessions: select if participant" RLS policy to pass
- * (is_room_participant(id)), but that's only true *after* the
- * room_participants insert below runs -- a second statement that hasn't
- * happened yet at the moment of the first insert. Generating the id
- * ourselves sidesteps that chicken-and-egg RLS timing problem entirely:
- * every field the caller needs is already known locally, no read-back
- * required.
+ * This used to be two separate client inserts -- swipe_sessions, then
+ * room_participants -- with a client-generated uuid to dodge an RLS
+ * read-back problem. scripts/test-e2e.mjs proved that leaks orphans against
+ * the real database: if the second insert failed, the room row survived but
+ * its creator could no longer SELECT it (the "select if participant" policy
+ * needs the participant row that never got written), so the 4-letter code
+ * was permanently consumed by a room nobody could see, join, or clean up.
+ *
+ * A PL/pgSQL function body is one transaction, so the RPC writes both rows
+ * or neither. It also allocates the code server-side, where the uniqueness
+ * check and the insert can't race another client, and returns the finished
+ * row directly -- which sidesteps the original RLS read-back problem without
+ * needing a client-generated id at all.
  */
-export async function createRoom(userId: string): Promise<RoomState> {
+export async function createRoom(_userId: string): Promise<RoomState> {
   const supabase = createSupabaseBrowserClient();
-  const id = crypto.randomUUID();
 
-  // 26^4 = ~456,976 possible codes; collisions are rare but `code` is
-  // UNIQUE, so a collision surfaces as Postgres error 23505 and just
-  // deserves a retry with a fresh code rather than failing outright.
-  let code = generateRoomCode();
-  let lastError: unknown = null;
-  let inserted = false;
-  for (let attempt = 0; attempt < 5 && !inserted; attempt++) {
-    const { error } = await supabase.from("swipe_sessions").insert({
-      id,
-      code,
-      creator_id: userId,
-      status: "waiting",
-    });
-    if (!error) {
-      inserted = true;
-      break;
-    }
-    lastError = error;
-    if (error.code === "23505") {
-      code = generateRoomCode();
-      continue;
-    }
-    throw error;
-  }
-  if (!inserted) throw lastError ?? new Error("Could not create room (code collisions).");
+  const { data, error } = await supabase.rpc("create_room").single();
+  if (error) throw error;
+  if (!data) throw new Error("create_room() returned no row.");
 
-  const { error: joinError } = await supabase
-    .from("room_participants")
-    .insert({ room_id: id, user_id: userId });
-  if (joinError) throw joinError;
-
-  return {
-    id,
-    code,
-    creatorId: userId,
-    status: "waiting",
-    matchedCuisineId: null,
-    matchedRestaurantName: null,
-    matchedDishName: null,
-  };
+  return mapRoomRow(data as Record<string, unknown>);
 }
 
 // ---------------------------------------------------------------------------
