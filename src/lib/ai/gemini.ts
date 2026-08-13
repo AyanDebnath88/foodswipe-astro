@@ -28,9 +28,14 @@ export async function generateGeminiJson<T>(params: {
     throw new GeminiError("GEMINI_API_KEY is not configured");
   }
 
-  const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+  // The key goes in a header, NOT `?key=...` in the URL. A URL with the key
+  // in it ends up inside thrown fetch errors, stack traces and any log line
+  // that prints the request -- and every caller of this function logs the
+  // error before falling back. Same endpoint, same auth, one fewer place the
+  // key can turn up.
+  const response = await fetch(GEMINI_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       contents: [{ parts: [{ text: params.prompt }] }],
       generationConfig: {

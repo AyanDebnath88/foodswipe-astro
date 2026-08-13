@@ -688,9 +688,13 @@ async function main() {
       // DEFINER, so it sees the row regardless of RLS -- "Room not found" is
       // the only conclusive proof the delete actually removed it.
       const { error: probeErr } = await joinByCode(A.client, orphanCode);
+      // Two acceptable shapes of "no such room": the pre-0013 raised
+      // exception, and 0013's empty result set (which .single() turns into
+      // PostgREST's PGRST116). Both mean the row is gone; neither means the
+      // room is still joinable, which is the only thing this asserts.
       assert(
         "stranded row really is gone (SECURITY DEFINER probe says room not found)",
-        !!probeErr && /not found/i.test(probeErr.message ?? ""),
+        !!probeErr && (/not found/i.test(probeErr.message ?? "") || probeErr.code === "PGRST116"),
         probeErr ? probeErr.message : "room still joinable -- delete did NOT remove it"
       );
     }

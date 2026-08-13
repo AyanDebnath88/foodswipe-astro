@@ -130,7 +130,17 @@ export async function joinRoomByCode(code: string): Promise<RoomState> {
   const { data, error } = await supabase
     .rpc("join_room_by_code", { p_code: code.trim().toUpperCase() })
     .single();
-  if (error) throw error;
+  if (error) {
+    // As of 0013_harden_rls_and_validation.sql the RPC reports "no such
+    // room" by returning zero rows instead of raising: it has to commit the
+    // failed-attempt row that the guess throttle counts, and a raised
+    // exception would roll that write back (see that migration's block G).
+    // PGRST116 is PostgREST's "0 rows where exactly 1 was requested", which
+    // .single() produces from an empty result -- map it back to the message
+    // this function has always thrown so nothing changes for the user.
+    if (error.code === "PGRST116") throw new Error("Room not found.");
+    throw error;
+  }
   if (!data) throw new Error("Room not found.");
   return mapRoomRow(data as Record<string, unknown>);
 }

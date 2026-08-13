@@ -16,8 +16,25 @@
 // in Phase 5 once the affiliate programs (DoorDash, Uber Eats, Swiggy,
 // Zomato, Deliveroo, Just Eat, Wolt, Lieferando) are actually signed up for.
 import type { APIRoute } from "astro";
+import {
+  BadRequest,
+  cleanText,
+  errorResponse,
+  finiteNumber,
+  json,
+  rateLimit,
+  readJsonBody,
+  tooManyRequests,
+} from "@/lib/api/guard";
 
 export const prerender = false;
+
+// This is the one route with no paid upstream -- it only builds search URLs
+// -- so its limit is looser. It still needs one: it is a public endpoint that
+// echoes caller text back inside URLs, which is exactly the shape of thing
+// people point at other people.
+const MAX_RESTAURANT_NAME = 120;
+const RATE_LIMIT_PER_WINDOW = 25;
 
 interface DeliveryLink {
   serviceName: string;
@@ -25,12 +42,6 @@ interface DeliveryLink {
 }
 
 type Region = "IN" | "UK" | "EU" | "GLOBAL";
-
-interface RequestBody {
-  restaurantName?: unknown;
-  latitude?: unknown;
-  longitude?: unknown;
-}
 
 function resolveRegion(latitude: number, longitude: number): Region {
   // Coordinate check for India
@@ -83,30 +94,29 @@ function buildLinks(region: Region, restaurantName: string): DeliveryLink[] {
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  let body: RequestBody;
+  const limit = rateLimit(request, "delivery-links", RATE_LIMIT_PER_WINDOW);
+  if (!limit.ok) return tooManyRequests(limit.retryAfterSeconds);
+
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
+    body = await readJsonBody(request);
+  } catch (err) {
+    return errorResponse(err instanceof BadRequest ? err.message : "Invalid JSON body", 400);
   }
 
-  const restaurantName =
-    typeof body.restaurantName === "string" && body.restaurantName.trim() ? body.restaurantName.trim() : null;
-  const latitude = typeof body.latitude === "number" ? body.latitude : null;
-  const longitude = typeof body.longitude === "number" ? body.longitude : null;
+  const restaurantName = cleanText(body.restaurantName, MAX_RESTAURANT_NAME);
+  const latitude = finiteNumber(body.latitude, -90, 90);
+  const longitude = finiteNumber(body.longitude, -180, 180);
 
   if (!restaurantName || latitude === null || longitude === null) {
-    return new Response(
-      JSON.stringify({ error: "restaurantName (string), latitude (number), longitude (number) are required" }),
-      { status: 400 }
+    return errorResponse(
+      "restaurantName (string), latitude (number, -90..90), longitude (number, -180..180) are required",
+      400
     );
   }
 
   const region = resolveRegion(latitude, longitude);
   const services = buildLinks(region, restaurantName);
 
-  return new Response(JSON.stringify({ services, region }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return json({ services, region });
 };

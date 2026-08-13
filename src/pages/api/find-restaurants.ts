@@ -13,20 +13,31 @@
 // Geoapify is unreachable, unconfigured, or returns nothing -- still useful
 // as a degraded-mode fallback so this endpoint never hard-fails the caller.
 import type { APIRoute } from "astro";
+import {
+  BadRequest,
+  cleanText,
+  errorResponse,
+  finiteNumber,
+  json,
+  rateLimit,
+  readJsonBody,
+  tooManyRequests,
+} from "@/lib/api/guard";
 
 export const prerender = false;
+
+// Unauthenticated and backed by a paid Geoapify key, so the same size/rate
+// caps as the Gemini routes apply. Coordinates are also range-checked now:
+// `typeof NaN === "number"` and latitude 999 both used to sail through and
+// become a live Geoapify query.
+const MAX_CUISINE = 60;
+const RATE_LIMIT_PER_WINDOW = 8;
 
 export interface Restaurant {
   name: string;
   vicinity: string;
   rating: number;
   website: string;
-}
-
-interface RequestBody {
-  cuisine?: unknown;
-  latitude?: unknown;
-  longitude?: unknown;
 }
 
 function mockRestaurants(cuisine: string, latitude: number, longitude: number): Restaurant[] {
@@ -126,21 +137,24 @@ async function fetchFromGeoapify(
 }
 
 export const POST: APIRoute = async ({ request }) => {
-  let body: RequestBody;
+  const limit = rateLimit(request, "find-restaurants", RATE_LIMIT_PER_WINDOW);
+  if (!limit.ok) return tooManyRequests(limit.retryAfterSeconds);
+
+  let body: Record<string, unknown>;
   try {
-    body = await request.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 });
+    body = await readJsonBody(request);
+  } catch (err) {
+    return errorResponse(err instanceof BadRequest ? err.message : "Invalid JSON body", 400);
   }
 
-  const cuisine = typeof body.cuisine === "string" && body.cuisine.trim() ? body.cuisine.trim() : null;
-  const latitude = typeof body.latitude === "number" ? body.latitude : null;
-  const longitude = typeof body.longitude === "number" ? body.longitude : null;
+  const cuisine = cleanText(body.cuisine, MAX_CUISINE);
+  const latitude = finiteNumber(body.latitude, -90, 90);
+  const longitude = finiteNumber(body.longitude, -180, 180);
 
   if (!cuisine || latitude === null || longitude === null) {
-    return new Response(
-      JSON.stringify({ error: "cuisine (string), latitude (number), longitude (number) are required" }),
-      { status: 400 }
+    return errorResponse(
+      "cuisine (string), latitude (number, -90..90), longitude (number, -180..180) are required",
+      400
     );
   }
 
@@ -149,20 +163,16 @@ export const POST: APIRoute = async ({ request }) => {
     try {
       const restaurants = await fetchFromGeoapify(cuisine, latitude, longitude, apiKey);
       if (restaurants.length > 0) {
-        return new Response(JSON.stringify({ restaurants, source: "geoapify" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return json({ restaurants, source: "geoapify" });
       }
     } catch (err) {
+      // Never surfaced to the caller: the thrown message can carry the
+      // Geoapify request URL, and that URL carries the API key.
       console.error("[find-restaurants] Geoapify search failed, using mock fallback:", err);
     }
   } else {
     console.warn("[find-restaurants] GEOAPIFY_API_KEY not configured, using mock fallback");
   }
 
-  return new Response(
-    JSON.stringify({ restaurants: mockRestaurants(cuisine, latitude, longitude), source: "mock" }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
-  );
+  return json({ restaurants: mockRestaurants(cuisine, latitude, longitude), source: "mock" });
 };
