@@ -1,21 +1,86 @@
 ---
+// Ported from the reference Next.js project's src/app/page.tsx. Copy, nav,
+// and layout match the reference. Deviations:
+//   - The reference's Get Started CTA links to /swipe, which doesn't exist
+//     in this phase (Phase 1 is Auth & core UI only -- swipe/rooms are a
+//     later phase). Linking there would be a dead link, so it points to
+//     /signup instead, which is the actual "start using the app" entry
+//     point this phase ships.
+//   - FoodWarsAnimation (an animated <canvas> background) is intentionally
+//     not ported -- per the task, faithfully porting it is optional and not
+//     worth blocking on. In its place: a static, CSS-only radial-gradient
+//     wash built from the same brand tokens (primary/accent/background) in
+//     src/styles/global.css. No JS, no <canvas>, nothing to hydrate.
+//   - No React islands, no client:* directives anywhere on this page --
+//     this is plain Astro + Tailwind, so it ships zero client JS.
 import BaseLayout from "../layouts/BaseLayout.astro";
+
+const year = new Date().getFullYear();
 ---
 
-<BaseLayout>
-  <main class="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-    <h1 class="font-headline text-4xl text-foreground">Food Swipe</h1>
-    <p class="max-w-md font-body text-foreground/80">
-      Astro + Supabase foundation is wired up. Brand tokens (primary, background,
-      accent) and fonts (Belleza / Alegreya) are live.
-    </p>
-    <div class="flex gap-3">
-      <span class="rounded-lg bg-primary px-4 py-2 font-body text-primary-foreground">
-        Primary
-      </span>
-      <span class="rounded-lg bg-accent px-4 py-2 font-body text-accent-foreground">
-        Accent
-      </span>
+<BaseLayout title="Food Swipe" description="Stop arguing. Start eating. Swipe together, decide together.">
+  <div class="relative h-screen w-full overflow-hidden bg-background">
+    <!-- Static CSS-only background wash (see file header) -->
+    <div class="pointer-events-none absolute inset-0 hero-gradient"></div>
+
+    <div class="relative z-10 flex h-full flex-col">
+      <header class="container mx-auto flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <a href="/" class="group flex items-center gap-2">
+          <div class="rounded-lg bg-primary/80 p-2 text-primary-foreground transition-colors group-hover:bg-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6" aria-hidden="true">
+              <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+              <path d="M7 2v20" />
+              <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+            </svg>
+          </div>
+          <span class="font-headline text-2xl font-bold text-foreground">Food Swipe</span>
+        </a>
+        <nav class="flex items-center">
+          <a
+            href="/login"
+            class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 py-2 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Sign In
+          </a>
+          <a
+            href="/signup"
+            class="ml-2 inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 py-2 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Sign Up Free
+          </a>
+        </nav>
+      </header>
+
+      <main class="flex flex-1 flex-col items-center justify-center px-4 text-center">
+        <h1 class="bg-gradient-to-b from-foreground to-foreground/60 bg-clip-text font-headline text-5xl tracking-tight text-transparent md:text-7xl">
+          Stop arguing. Start eating.
+        </h1>
+        <p class="mt-6 max-w-2xl bg-gradient-to-b from-muted-foreground to-muted-foreground/60 bg-clip-text font-body text-lg text-transparent md:text-xl">
+          Tired of the endless 'what do you want to eat?' debate? Food Swipe lets you and your friends swipe on cuisines together. When you all swipe right, it's a match!
+        </p>
+        <div class="mt-8">
+          <a
+            href="/signup"
+            class="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-8 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Get Started
+          </a>
+        </div>
+      </main>
+
+      <footer class="py-6 text-center font-body text-sm text-muted-foreground/80">
+        <p>&copy; {year} Food Swipe. All rights reserved.</p>
+      </footer>
     </div>
-  </main>
+  </div>
 </BaseLayout>
+
+<style>
+  .hero-gradient {
+    background-image:
+      radial-gradient(circle at 15% 20%, hsl(var(--primary) / 0.55), transparent 40%),
+      radial-gradient(circle at 85% 15%, hsl(var(--accent) / 0.55), transparent 45%),
+      radial-gradient(circle at 50% 85%, hsl(var(--secondary) / 0.35), transparent 50%),
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
+  }
+</style>

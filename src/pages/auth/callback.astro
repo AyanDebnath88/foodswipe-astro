@@ -1,0 +1,22 @@
+---
+// OAuth callback route: Supabase's PKCE flow (used by
+// signInWithOAuth({ provider: "google" }) in signup-form.tsx / login-form.tsx)
+// redirects the browser back here with a `?code=` param that must be
+// exchanged for a session server-side. This wasn't explicitly listed in
+// Task 4, but without it the Google button's redirectTo target would 404 --
+// this is the minimum needed for the "code path should be correct and ready
+// for it" requirement to actually hold once a Google OAuth client is wired
+// up in the Supabase dashboard (a later, manual step).
+export const prerender = false;
+
+import { createSupabaseServerClient } from "../../lib/supabase/server";
+
+const code = Astro.url.searchParams.get("code");
+
+if (code) {
+  const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+  await supabase.auth.exchangeCodeForSession(code);
+}
+
+return Astro.redirect("/");
+---

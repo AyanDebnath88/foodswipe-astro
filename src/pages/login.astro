@@ -1,0 +1,63 @@
+---
+// Ported from the reference Next.js project's src/app/(auth)/layout.tsx +
+// src/app/(auth)/login/page.tsx. See signup.astro for why the Card chrome is
+// inlined rather than importing an unlisted ui/card.tsx.
+//
+// Task 6 (session-aware layout): this is the one page in this phase that
+// actually reads auth state on the server via src/lib/supabase/server.ts --
+// an already-logged-in visitor hitting /login is bounced to / instead of
+// being shown the form again. `export const prerender = false` opts this
+// route out of Astro's default static output so it runs per-request (see
+// astro.config.mjs for the Node adapter this requires).
+export const prerender = false;
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { Logo } from "../components/shared/logo";
+import { LoginForm } from "../components/auth/login-form";
+import { Toaster } from "../components/ui/toaster";
+import { createSupabaseServerClient } from "../lib/supabase/server";
+
+// Defensive try/catch: there is no live Supabase project configured for this
+// phase (PUBLIC_SUPABASE_URL/ANON_KEY are placeholders until the user creates
+// one), so this call can fail with a network/DNS error rather than cleanly
+// returning `{ user: null }`. Either way -- no session or no reachable
+// Supabase -- the correct fallback is the same: render the login form.
+let isAuthenticated = false;
+try {
+  const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  isAuthenticated = user !== null;
+} catch (error) {
+  console.error("Failed to check auth state on /login:", error);
+}
+
+if (isAuthenticated) {
+  return Astro.redirect("/");
+}
+---
+
+<BaseLayout title="Log In · Food Swipe" description="Log in to your Food Swipe account.">
+  <div class="flex flex-col items-center justify-center min-h-screen bg-background p-4">
+    <div class="mb-8">
+      <Logo />
+    </div>
+    <div class="w-full max-w-sm rounded-lg border bg-card text-card-foreground shadow-lg">
+      <div class="flex flex-col space-y-1.5 p-6">
+        <h1 class="text-2xl font-headline leading-none tracking-tight">Welcome Back</h1>
+        <p class="text-sm text-muted-foreground">
+          Enter your email below to log in to your account.
+        </p>
+      </div>
+      <div class="p-6 pt-0">
+        <LoginForm client:load />
+        <div class="mt-4 text-center text-sm">
+          Don't have an account?
+          <a href="/signup" class="underline">Sign up</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <Toaster client:load />
+</BaseLayout>
