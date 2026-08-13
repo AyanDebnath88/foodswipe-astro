@@ -240,7 +240,10 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
   useEffect(() => {
     if (!initializedRef.current || !room) return;
     if (localDeck.length > 0) return;
-    if (room.status === "matched" || room.status === "dish_matched") return;
+    // 'dish_matched' used to be checked here too. It no longer exists as an
+    // app-level status: a dish match is now a row in dish_matches and never
+    // touches the room's status (see src/lib/rooms.ts's RoomStatus comment).
+    if (room.status === "matched") return;
     if (aiLoading) return;
     if (fallbackAttemptsRef.current >= MAX_AUTO_FALLBACK_ATTEMPTS) return;
     void handleAiFallback(true);
@@ -321,6 +324,16 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
               {aiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               Get AI Suggestions
             </Button>
+            {/*
+              Dead-end fix: an empty deck whose AI refills also come back
+              empty used to leave this screen with exactly one button that
+              did nothing. There must always be a way back to the room.
+            */}
+            <div className="mt-3">
+              <Button asChild variant="link" className="text-muted-foreground">
+                <a href="/rooms">Back to the room</a>
+              </Button>
+            </div>
           </div>
         )}
       </div>

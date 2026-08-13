@@ -35,12 +35,21 @@ function titleCase(id: string): string {
 
 export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
   const [room, setRoom] = useState<RoomState | null>(null);
+  const [roomState, setRoomState] = useState<"loading" | "ok" | "missing">("loading");
   const [restaurantNameInput, setRestaurantNameInput] = useState("");
   const emoji = CUISINE_EMOJI[cuisineId] ?? "🍽️";
   const cuisineName = titleCase(cuisineId.replace(/^ai-/, "").replace(/-/g, " "));
 
   useEffect(() => {
-    fetchRoomByCode(roomCode).then(setRoom);
+    let cancelled = false;
+    fetchRoomByCode(roomCode).then((r) => {
+      if (cancelled) return;
+      setRoom(r);
+      setRoomState(r ? "ok" : "missing");
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [roomCode]);
 
   const handleContinueToDishes = (e: React.FormEvent) => {
@@ -48,6 +57,26 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
     if (restaurantNameInput.trim().length === 0) return;
     window.location.href = `/match/${cuisineId}/${encodeURIComponent(restaurantNameInput.trim())}?room=${roomCode}`;
   };
+
+  // Dead-end fix: this page used to render its full reveal + "type a
+  // restaurant name" form even when the room didn't exist or the user wasn't
+  // a participant of it (fetchRoomByCode() is RLS-guarded and returns null
+  // for both). Continuing from there just bounced off the dish page's own
+  // redirect with no explanation. Say so, and offer a way out.
+  if (roomState === "missing") {
+    return (
+      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-2xl font-headline">This room isn't available</h1>
+        <p className="font-body text-muted-foreground max-w-md">
+          Room {roomCode} either no longer exists or you're not a member of it any more. Head back and join
+          or host a room to keep swiping.
+        </p>
+        <Button asChild className="rounded-2xl h-11 px-8">
+          <a href="/rooms">Back to rooms</a>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-12">
@@ -102,6 +131,14 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
         />
         <Button type="submit" disabled={restaurantNameInput.trim().length === 0} className="h-12 rounded-2xl">
           Swipe dishes together at this restaurant
+        </Button>
+        {/*
+          Dead-end fix: this page had no backward action at all -- the only
+          control was a form you couldn't submit until you'd typed a
+          restaurant name, so a user with no restaurant in mind was stuck.
+        */}
+        <Button asChild variant="link" className="text-muted-foreground">
+          <a href="/rooms">Back to the room</a>
         </Button>
       </form>
     </div>

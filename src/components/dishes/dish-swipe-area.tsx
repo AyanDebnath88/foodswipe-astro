@@ -1,33 +1,61 @@
 "use client";
 
-// Phase 2, Task 7 (dish-level room sync -- the P0 fix). Ported from the
-// reference Next.js project's src/components/dishes/dish-swipe-area.tsx,
-// restructured the same way swipe-area.tsx was restructured from the
-// reference's swipe-area.tsx: writes go through the new `dish_swipes` table
-// (supabase/migrations/0007_dish_swipes.sql) instead of local-only React
-// state, match detection is server-side (check_dish_swipe_match() trigger),
-// and the group's progress/result is synced via the same Realtime channel
-// swipe-area.tsx uses (src/lib/rooms.ts's subscribeToRoom).
+// Group dish swiping -- MULTI-DISH model.
 //
-// Dish source: the reference app fetched a live, restaurant-specific menu
-// via an AI flow. That's Phase 3 territory this phase doesn't wire up (see
-// match-reveal.tsx's stub comment for the matching restaurant-discovery
-// boundary) -- and unlike suggest-cuisines, no HTTP contract for a menu
-// endpoint was specified for this phase to build against. Instead, the
-// matched cuisine's own `dishes text[]` column (supabase/migrations/
-// 0002_seed_cuisines.sql, 5 dishes per cuisine) stands in as a generic
-// dish deck, scoped to whatever restaurant name the group is currently
-// looking at. A later phase can swap this for a real per-restaurant menu
-// fetch without touching the dish_swipes schema, RLS, or match trigger at
-// all -- only where the `Dish[]` array comes from changes.
-import { useCallback, useEffect, useRef, useState } from "react";
+// This component used to render a terminal "The group decided!" screen the
+// moment `swipe_sessions.status` flipped to 'dish_matched', i.e. after ONE
+// dish reached unanimity. Real two-user testing showed that's the wrong
+// product model: a table orders a starter, a couple of mains and a dessert,
+// so stopping at the first agreed dish ends the session with most of the
+// order still undecided (and nothing could move the room back out of that
+// status again).
+//
+// New model (supabase/migrations/0012_dish_matches.sql): each dish that
+// reaches unanimity INSERTs a row into `dish_matches` and the room's status
+// is left alone. This component therefore:
+//   * renders a RUNNING agreed-dishes list that grows live via Realtime as
+//     each member's vote completes another dish,
+//   * removes an agreed dish from the remaining deck (and shows it in the
+//     agreed list instead) so nobody re-votes on something already settled,
+//   * offers an explicit "Done -- show our order" summary, which is the only
+//     thing that ends the session, and is reversible ("keep swiping"),
+//   * always offers a way onward, including when the deck empties with zero
+//     agreed dishes.
+//
+// Match detection is still entirely server-side (check_dish_swipe_match()
+// SECURITY DEFINER trigger) -- this component never decides a match, it only
+// reads dish_matches and reacts.
+//
+// Dish source is unchanged: the matched cuisine's generic `dishes text[]`
+// from the cuisines catalog (0002_seed_cuisines.sql), scoped to whatever
+// restaurant name the group is looking at. Swapping in a real per-restaurant
+// menu (/api/restaurant-menu) touches only this fetch, not the schema, RLS,
+// or the trigger.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DishCard, type Dish } from "./dish-card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { X, Heart, PartyPopper, ThumbsDown, Utensils, Loader2 } from "lucide-react";
+import {
+  X,
+  Heart,
+  PartyPopper,
+  Utensils,
+  Loader2,
+  Check,
+  ClipboardList,
+  ArrowLeft,
+  Store,
+} from "lucide-react";
 import { fetchCuisines } from "@/lib/cuisines";
-import { fetchDishSwipes, submitDishSwipe, type DishSwipeRow } from "@/lib/dish-swipes";
-import { fetchRoomByCode, fetchRoomParticipants, subscribeToRoom, type Participant, type RoomState } from "@/lib/rooms";
+import { fetchDishSwipes, submitDishSwipe } from "@/lib/dish-swipes";
+import { fetchDishMatches, type DishMatch } from "@/lib/dish-matches";
+import {
+  fetchRoomByCode,
+  fetchRoomParticipants,
+  subscribeToRoom,
+  type Participant,
+  type RoomState,
+} from "@/lib/rooms";
 import { getCurrentUser } from "@/lib/guest-auth";
 
 interface DishSwipeAreaProps {
@@ -46,28 +74,74 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
   const [room, setRoom] = useState<RoomState | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deck, setDeck] = useState<Dish[]>([]);
-  const [likedDishes, setLikedDishes] = useState<Dish[]>([]);
+
+  const [allDishes, setAllDishes] = useState<Dish[]>([]);
+  const [mySwipedNames, setMySwipedNames] = useState<Set<string>>(new Set());
+  const [myLikedNames, setMyLikedNames] = useState<Set<string>>(new Set());
   const [dishVotes, setDishVotes] = useState<Map<string, Map<string, "left" | "right">>>(new Map());
-  const initializedRef = useRef(false);
+  const [agreed, setAgreed] = useState<DishMatch[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
+
+  // Names already agreed by the group at THIS restaurant. An agreed dish is
+  // settled -- it leaves the deck so nobody votes on it twice.
+  const agreedNamesHere = useMemo(
+    () =>
+      new Set(
+        agreed.filter((m) => m.restaurantName === restaurantName).map((m) => m.dishName)
+      ),
+    [agreed, restaurantName]
+  );
+
+  const deck = useMemo(
+    () => allDishes.filter((d) => !mySwipedNames.has(d.name) && !agreedNamesHere.has(d.name)),
+    [allDishes, mySwipedNames, agreedNamesHere]
+  );
 
   const currentDish = deck[0] ?? null;
-  const swipingFinished = deck.length === 0;
+  const deckExhausted = deck.length === 0;
+
+  // Announce newly agreed dishes once each. Without this ref every Realtime
+  // refetch would re-toast the whole list.
+  const announcedRef = useRef<Set<string>>(new Set());
 
   const refreshParticipants = useCallback(async (roomId: string) => {
     setParticipants(await fetchRoomParticipants(roomId));
   }, []);
 
-  const refreshDishSwipes = useCallback(async (sessionId: string) => {
-    const rows = await fetchDishSwipes(sessionId, restaurantName);
-    const map = new Map<string, Map<string, "left" | "right">>();
-    for (const row of rows as DishSwipeRow[]) {
-      if (!map.has(row.dishName)) map.set(row.dishName, new Map());
-      map.get(row.dishName)!.set(row.userId, row.direction);
-    }
-    setDishVotes(map);
-  }, [restaurantName]);
+  const refreshDishSwipes = useCallback(
+    async (sessionId: string) => {
+      const rows = await fetchDishSwipes(sessionId, restaurantName);
+      const map = new Map<string, Map<string, "left" | "right">>();
+      for (const row of rows) {
+        if (!map.has(row.dishName)) map.set(row.dishName, new Map());
+        map.get(row.dishName)!.set(row.userId, row.direction);
+      }
+      setDishVotes(map);
+    },
+    [restaurantName]
+  );
 
+  const refreshAgreed = useCallback(
+    async (sessionId: string) => {
+      // Whole-session scope, not just this restaurant: the summary is "what
+      // the table agreed on", and a group can browse more than one restaurant.
+      const matches = await fetchDishMatches(sessionId);
+      setAgreed(matches);
+      // announcedRef is pre-seeded with everything present at first load, so
+      // anything unseen here genuinely landed while the user was swiping.
+      for (const m of matches) {
+        const key = `${m.restaurantName}::${m.dishName}`;
+        if (announcedRef.current.has(key)) continue;
+        announcedRef.current.add(key);
+        toast({ title: "The table agreed!", description: `${m.dishName} is on the order.` });
+      }
+    },
+    [toast]
+  );
+
+  // -------------------------------------------------------------------------
+  // Initial load
+  // -------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -81,40 +155,48 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
 
       const roomState = await fetchRoomByCode(roomCode);
       if (!roomState) {
-        toast({ variant: "destructive", title: "Room not found", description: `Room "${roomCode}" no longer exists.` });
+        toast({
+          variant: "destructive",
+          title: "Room not found",
+          description: `Room "${roomCode}" no longer exists.`,
+        });
         window.location.href = "/rooms";
         return;
       }
       if (cancelled) return;
       setRoom(roomState);
 
-      const [cuisines, roomParticipants, dishRows] = await Promise.all([
+      const [cuisines, roomParticipants, dishRows, matches] = await Promise.all([
         fetchCuisines(),
         fetchRoomParticipants(roomState.id),
         fetchDishSwipes(roomState.id, restaurantName),
+        fetchDishMatches(roomState.id),
       ]);
       if (cancelled) return;
 
       const cuisine = cuisines.find((c) => c.id === cuisineId);
-      const dishNames = cuisine?.dishes ?? [];
-      const dishes: Dish[] = dishNames.map((name, index) => ({
+      const dishes: Dish[] = (cuisine?.dishes ?? []).map((name, index) => ({
         id: dishIdFor(name),
         name,
         isTopPick: index === 0,
       }));
 
-      const mySwipedNames = new Set(dishRows.filter((r) => r.userId === user.id).map((r) => r.dishName));
-
-      setParticipants(roomParticipants);
+      const mine = dishRows.filter((r) => r.userId === user.id);
       const map = new Map<string, Map<string, "left" | "right">>();
       for (const row of dishRows) {
         if (!map.has(row.dishName)) map.set(row.dishName, new Map());
         map.get(row.dishName)!.set(row.userId, row.direction);
       }
+
+      for (const m of matches) announcedRef.current.add(`${m.restaurantName}::${m.dishName}`);
+
+      setParticipants(roomParticipants);
       setDishVotes(map);
-      setDeck(dishes.filter((d) => !mySwipedNames.has(d.name)));
+      setAllDishes(dishes);
+      setMySwipedNames(new Set(mine.map((r) => r.dishName)));
+      setMyLikedNames(new Set(mine.filter((r) => r.direction === "right").map((r) => r.dishName)));
+      setAgreed(matches);
       setLoading(false);
-      initializedRef.current = true;
     })();
     return () => {
       cancelled = true;
@@ -122,12 +204,16 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, cuisineId, restaurantName]);
 
+  // -------------------------------------------------------------------------
+  // Realtime: this is how each member watches the order fill up live.
+  // -------------------------------------------------------------------------
   useEffect(() => {
     if (!room) return;
     const unsubscribe = subscribeToRoom(room.id, {
       onSessionChange: (updated) => setRoom(updated),
       onParticipantsChange: () => refreshParticipants(room.id),
       onDishSwipeChange: () => refreshDishSwipes(room.id),
+      onDishMatch: () => refreshAgreed(room.id),
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -144,20 +230,29 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
         next.set(dish.name, votes);
         return next;
       });
+      if (direction === "right") {
+        setMyLikedNames((prev) => new Set(prev).add(dish.name));
+      }
     } catch (err) {
       console.error("Dish swipe error:", err);
       toast({ variant: "destructive", title: "Swipe Error", description: "Failed to record your vote." });
+      return;
     }
 
-    if (direction === "right") {
-      setLikedDishes((prev) => [...prev, dish]);
-    }
+    // A vote that completes unanimity arrives back as a dish_matches INSERT
+    // over Realtime (onDishMatch above) -- never decided here. The delay just
+    // lets the card's exit animation finish before the deck recomputes.
     setTimeout(() => {
-      setDeck((prev) => prev.slice(1));
+      setMySwipedNames((prev) => new Set(prev).add(dish.name));
     }, 500);
   };
 
   const votesOnCurrent = currentDish ? dishVotes.get(currentDish.name)?.size ?? 0 : 0;
+  const agreedHere = agreed.filter((m) => m.restaurantName === restaurantName);
+  const agreedElsewhere = agreed.filter((m) => m.restaurantName !== restaurantName);
+  const pendingLikes = [...myLikedNames].filter((n) => !agreedNamesHere.has(n));
+
+  const backToRestaurants = `/match/${cuisineId}?room=${roomCode}`;
 
   if (loading) {
     return (
@@ -167,60 +262,146 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
     );
   }
 
-  if (room?.status === "dish_matched" && room.matchedDishName) {
+  // ---------------------------------------------------------------------------
+  // Final summary -- reached by choosing "Done", never forced by the server.
+  // ---------------------------------------------------------------------------
+  if (showSummary) {
     return (
-      <div className="w-full max-w-sm rounded-2xl border-2 border-primary/30 bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
+      <div className="w-full max-w-md rounded-2xl border-2 border-primary/30 bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
         <div className="mx-auto bg-primary/20 p-3 rounded-full mb-3 w-fit">
-          <PartyPopper className="h-8 w-8 text-primary" />
+          <ClipboardList className="h-8 w-8 text-primary" />
         </div>
-        <h3 className="text-xl font-headline">The group decided!</h3>
-        <p className="text-muted-foreground mt-2">
-          Everyone agreed on <span className="font-bold text-primary">{room.matchedDishName}</span> at{" "}
-          {room.matchedRestaurantName ?? restaurantName}.
+        <h3 className="text-2xl font-headline">Your table's order</h3>
+        <p className="text-muted-foreground mt-1 font-body text-sm">
+          {agreed.length > 0
+            ? `${agreed.length} dish${agreed.length === 1 ? "" : "es"} everyone agreed on.`
+            : "Nothing agreed on yet."}
         </p>
-        <Button asChild className="w-full mt-6 rounded-2xl h-12">
-          <a href="/rooms">Start a new search</a>
-        </Button>
-      </div>
-    );
-  }
 
-  if (swipingFinished) {
-    return (
-      <div className="w-full max-w-sm rounded-2xl border bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
-        <div className="mx-auto bg-primary/20 p-3 rounded-full mb-3 w-fit">
-          {likedDishes.length > 0 ? (
-            <PartyPopper className="h-8 w-8 text-primary" />
-          ) : (
-            <ThumbsDown className="h-8 w-8 text-primary" />
-          )}
-        </div>
-        <h3 className="text-xl font-headline">
-          {likedDishes.length > 0 ? "Here's your list!" : "Nothing caught your eye?"}
-        </h3>
-        {likedDishes.length > 0 ? (
-          <ul className="mt-4 space-y-2 text-left">
-            {likedDishes.map((dish) => (
-              <li key={dish.id} className="flex items-center gap-3 bg-background/60 p-3 rounded-lg">
-                <Utensils className="h-4 w-4 text-primary shrink-0" />
-                <span className="font-medium text-sm">{dish.name}</span>
+        {agreed.length > 0 ? (
+          <ul className="mt-6 space-y-2 text-left">
+            {agreed.map((match) => (
+              <li
+                key={match.id}
+                className="flex items-center gap-3 bg-background/60 p-3 rounded-xl border border-primary/10"
+              >
+                <Check className="h-4 w-4 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-body text-sm font-semibold text-foreground truncate">{match.dishName}</p>
+                  <p className="font-body text-xs text-muted-foreground truncate">{match.restaurantName}</p>
+                </div>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-muted-foreground mt-2">You didn't select any dishes.</p>
+          <p className="text-muted-foreground font-body text-sm mt-6">
+            The group didn't reach unanimity on any dish. Try another restaurant, or keep swiping -- a dish
+            only lands here once <em>everyone</em> in the room says yes.
+          </p>
         )}
-        <p className="text-xs text-muted-foreground mt-4 font-body">
-          Waiting for the rest of the group to finish swiping -- this screen updates automatically the moment
-          everyone agrees on a dish.
-        </p>
-        <Button asChild variant="outline" className="w-full mt-4 rounded-2xl h-11">
-          <a href="/rooms">Start a new search</a>
-        </Button>
+
+        <div className="mt-8 flex flex-col gap-2">
+          <Button variant="outline" className="w-full rounded-2xl h-11" onClick={() => setShowSummary(false)}>
+            <ArrowLeft className="h-4 w-4" />
+            Keep swiping
+          </Button>
+          <Button asChild variant="outline" className="w-full rounded-2xl h-11">
+            <a href={backToRestaurants}>
+              <Store className="h-4 w-4" />
+              Pick a different restaurant
+            </a>
+          </Button>
+          <Button asChild className="w-full rounded-2xl h-11">
+            <a href="/rooms">Back to rooms / start over</a>
+          </Button>
+        </div>
       </div>
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Agreed-so-far panel, rendered alongside the deck and in the empty state.
+  // ---------------------------------------------------------------------------
+  const agreedPanel = (
+    <div className="w-full mt-6 rounded-2xl border border-primary/20 bg-card/60 backdrop-blur-md p-4">
+      <h4 className="font-body text-xs uppercase font-bold tracking-wider text-primary flex items-center gap-1.5">
+        <PartyPopper className="h-3.5 w-3.5" />
+        Agreed so far ({agreed.length})
+      </h4>
+      {agreed.length === 0 ? (
+        <p className="font-body text-xs text-muted-foreground mt-2">
+          Nothing yet. A dish lands here the moment every diner in the room swipes right on it -- and you
+          keep swiping the rest of the menu either way.
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-1.5">
+          {agreedHere.map((match) => (
+            <li key={match.id} className="flex items-center gap-2 text-sm font-body">
+              <Check className="h-4 w-4 text-primary shrink-0" />
+              <span className="font-medium text-foreground">{match.dishName}</span>
+            </li>
+          ))}
+          {agreedElsewhere.map((match) => (
+            <li key={match.id} className="flex items-center gap-2 text-sm font-body text-muted-foreground">
+              <Check className="h-4 w-4 shrink-0" />
+              <span>{match.dishName}</span>
+              <span className="text-xs">· {match.restaurantName}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Button
+        variant={agreed.length > 0 ? "default" : "outline"}
+        className="w-full mt-4 rounded-2xl h-11"
+        onClick={() => setShowSummary(true)}
+      >
+        <ClipboardList className="h-4 w-4" />
+        Done — show our order
+      </Button>
+    </div>
+  );
+
+  // ---------------------------------------------------------------------------
+  // Deck exhausted. Not a dead end in either case: the agreed panel always
+  // carries "Done", plus explicit ways back out.
+  // ---------------------------------------------------------------------------
+  if (deckExhausted) {
+    return (
+      <div className="w-full max-w-sm flex flex-col items-center">
+        <div className="w-full rounded-2xl border bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
+          <div className="mx-auto bg-primary/20 p-3 rounded-full mb-3 w-fit">
+            <Utensils className="h-8 w-8 text-primary" />
+          </div>
+          <h3 className="text-xl font-headline">
+            {agreed.length > 0 ? "You've swiped the whole menu" : "That's the whole menu"}
+          </h3>
+          <p className="text-muted-foreground mt-2 font-body text-sm">
+            {pendingLikes.length > 0
+              ? `You said yes to ${pendingLikes.join(", ")} — waiting on the rest of the group. This list updates the moment everyone agrees.`
+              : agreed.length > 0
+                ? "Nothing left to vote on here. Wrap up your order, or try another restaurant."
+                : "Nobody's reached unanimity here yet. Wait for the others to finish swiping, or try a different restaurant."}
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button asChild variant="outline" className="w-full rounded-2xl h-11">
+              <a href={backToRestaurants}>
+                <Store className="h-4 w-4" />
+                Pick a different restaurant
+              </a>
+            </Button>
+            <Button asChild variant="outline" className="w-full rounded-2xl h-11">
+              <a href="/rooms">Back to rooms</a>
+            </Button>
+          </div>
+        </div>
+        {agreedPanel}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Normal swiping
+  // ---------------------------------------------------------------------------
   return (
     <div className="w-full max-w-sm flex flex-col items-center">
       <div className="relative w-full h-[20rem] flex items-center justify-center">
@@ -261,6 +442,8 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
           <Heart className="h-8 w-8" />
         </Button>
       </div>
+
+      {agreedPanel}
     </div>
   );
 }

@@ -15,6 +15,7 @@
 export const prerender = false;
 
 import BaseLayout from "../layouts/BaseLayout.astro";
+import AppHeader from "../components/shared/AppHeader.astro";
 import { SwipeArea } from "../components/swipe/swipe-area";
 import { Toaster } from "../components/ui/toaster";
 
@@ -25,7 +26,8 @@ if (!roomCode || roomCode.trim().length !== 4) {
 ---
 
 <BaseLayout title={`Swipe · Room ${roomCode}`} description="Swipe on cuisines with your group.">
-  <div class="flex flex-col items-center w-full min-h-screen pt-12 pb-8 bg-background">
+  <AppHeader roomCode={roomCode} />
+  <div class="flex flex-col items-center w-full min-h-screen pt-10 pb-8 bg-background">
     <div class="text-center mb-8 px-4">
       <h1 class="text-3xl md:text-4xl font-headline">Craving Match: Room {roomCode}</h1>
       <p class="text-muted-foreground mt-2">

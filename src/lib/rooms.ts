@@ -6,7 +6,19 @@
 // replaces the reference project's src/app/actions/rooms.ts server actions.
 import { createSupabaseBrowserClient } from "./supabase/client";
 
-export type RoomStatus = "waiting" | "swiping" | "matched" | "dish_matched";
+/**
+ * 'dish_matched' is deliberately absent.
+ *
+ * It used to be a terminal status set by check_dish_swipe_match() the moment
+ * one dish reached unanimity, which ended the session after a single dish --
+ * wrong product model, since a table orders several dishes together. As of
+ * supabase/migrations/0012_dish_matches.sql a dish match appends a row to
+ * `dish_matches` and leaves the room's status untouched, so the group keeps
+ * swiping. The column value still exists in the database (dropping it from
+ * the check constraint on a live project is riskier than ignoring it) and an
+ * old room may still carry it; nothing in the app branches on it any more.
+ */
+export type RoomStatus = "waiting" | "swiping" | "matched";
 
 export interface RoomState {
   id: string;
@@ -14,8 +26,6 @@ export interface RoomState {
   creatorId: string | null;
   status: RoomStatus;
   matchedCuisineId: string | null;
-  matchedRestaurantName: string | null;
-  matchedDishName: string | null;
 }
 
 export interface Participant {
@@ -67,13 +77,13 @@ function mapRoomRow(row: Record<string, unknown>): RoomState {
     creatorId: (row.creator_id as string | null) ?? null,
     status: row.status as RoomStatus,
     matchedCuisineId: (row.matched_cuisine_id as string | null) ?? null,
-    matchedRestaurantName: (row.matched_restaurant_name as string | null) ?? null,
-    matchedDishName: (row.matched_dish_name as string | null) ?? null,
   };
 }
 
-const ROOM_COLUMNS =
-  "id, code, creator_id, status, matched_cuisine_id, matched_restaurant_name, matched_dish_name";
+// matched_restaurant_name / matched_dish_name are intentionally NOT selected
+// any more -- see the RoomStatus comment above. The agreed-dish list comes
+// from the dish_matches table (src/lib/dish-matches.ts).
+const ROOM_COLUMNS = "id, code, creator_id, status, matched_cuisine_id";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -170,19 +180,35 @@ export async function fetchRoomParticipants(roomId: string): Promise<Participant
   }));
 }
 
+/**
+ * Really leaves a room: deletes this user's `room_participants` row via the
+ * "room_participants: leave own row" DELETE policy added in
+ * 0009_fix_join_match_realtime.sql, and only then clears the local cache.
+ *
+ * This used to be a localStorage-only clear (as the reference app's
+ * handleLeaveRoom() was), which left a GHOST PARTICIPANT behind: both match
+ * triggers count `room_participants` rows as the unanimity denominator, so
+ * someone who "left" still had to vote for the room to ever match again.
+ * One person closing the tab could permanently deadlock a room.
+ *
+ * The order matters. The local cache is cleared only after the server-side
+ * delete succeeds -- clearing first and then failing would hide the room
+ * from the user's own UI while leaving them counted in the denominator,
+ * which is precisely the un-fixable state this replaces. On failure the
+ * caller gets the error and the user is still (correctly) in the room.
+ *
+ * A delete that removes 0 rows is not an error: it means the row was already
+ * gone (double-click, or a second tab that already left).
+ */
 export async function leaveRoom(roomId: string, userId: string): Promise<void> {
   const supabase = createSupabaseBrowserClient();
-  // No explicit "leave room" RLS policy was added for this phase (no DELETE
-  // policy exists on room_participants in 0001_init.sql or later
-  // migrations), so this only clears the local cache -- matching the
-  // reference app's handleLeaveRoom(), which was also purely a client-side
-  // localStorage clear with no server-side leave call. A real "leave" that
-  // removes the row (and correctly shrinks match-unanimity's denominator
-  // for a live room) is left for a later phase.
+  const { error } = await supabase
+    .from("room_participants")
+    .delete()
+    .eq("room_id", roomId)
+    .eq("user_id", userId);
+  if (error) throw error;
   clearActiveRoom();
-  void supabase;
-  void roomId;
-  void userId;
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +219,13 @@ export interface RoomRealtimeHandlers {
   onParticipantsChange?: () => void;
   onSwipeChange?: () => void;
   onDishSwipeChange?: () => void;
+  /**
+   * A new dish just reached unanimity (an INSERT into dish_matches by the
+   * check_dish_swipe_match() trigger). This is how every member's
+   * agreed-dishes list grows live while the group keeps swiping -- it
+   * replaces the old single `status = 'dish_matched'` session update.
+   */
+  onDishMatch?: () => void;
 }
 
 /**
@@ -230,6 +263,11 @@ export function subscribeToRoom(roomId: string, handlers: RoomRealtimeHandlers):
       "postgres_changes",
       { event: "*", schema: "public", table: "dish_swipes", filter: `session_id=eq.${roomId}` },
       () => handlers.onDishSwipeChange?.()
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "dish_matches", filter: `session_id=eq.${roomId}` },
+      () => handlers.onDishMatch?.()
     )
     .subscribe();
 

@@ -1,0 +1,35 @@
+---
+// Dead-end fix found during the navigation audit: the project had no 404
+// page, so any mistyped or stale URL (an expired share link, a /match/... for
+// a room that's gone) landed on Astro's bare built-in 404 -- unstyled, and
+// with no link anywhere back into the app.
+import BaseLayout from "../layouts/BaseLayout.astro";
+import AppHeader from "../components/shared/AppHeader.astro";
+---
+
+<BaseLayout title="Not found · Food Swipe" description="That page doesn't exist.">
+  <div class="min-h-screen bg-background">
+    <AppHeader />
+    <div class="container mx-auto flex min-h-[70vh] flex-col items-center justify-center gap-4 px-4 text-center">
+      <p class="font-headline text-6xl text-primary">404</p>
+      <h1 class="font-headline text-2xl text-foreground">We couldn't find that page</h1>
+      <p class="max-w-md font-body text-muted-foreground">
+        The link may be out of date, or the room it pointed at may have ended.
+      </p>
+      <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
+        <a
+          href="/rooms"
+          class="inline-flex h-11 items-center justify-center rounded-md bg-primary px-8 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Go to your rooms
+        </a>
+        <a
+          href="/"
+          class="inline-flex h-11 items-center justify-center rounded-md px-6 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          Home
+        </a>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

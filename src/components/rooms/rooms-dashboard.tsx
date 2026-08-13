@@ -24,6 +24,7 @@ import {
   fetchRoomById,
   fetchRoomParticipants,
   joinRoomByCode,
+  leaveRoom,
   loadActiveRoom,
   saveActiveRoom,
   subscribeToRoom,
@@ -157,11 +158,30 @@ export function RoomsDashboard() {
     }
   };
 
-  const handleLeaveRoom = () => {
-    clearActiveRoom();
-    setActiveRoom(null);
-    setParticipants([]);
-    toast({ title: "Room Left", description: "You have left the swiping session." });
+  // A real leave: leaveRoom() DELETEs this user's room_participants row (see
+  // src/lib/rooms.ts) before clearing the local cache. This used to be a
+  // localStorage-only clear, which left a ghost participant inflating the
+  // match trigger's unanimity denominator -- the room could then never match
+  // again, because someone who had visibly "left" still had to vote.
+  const handleLeaveRoom = async () => {
+    if (!activeRoom || !userId || isLoading) return;
+    setIsLoading(true);
+    try {
+      await leaveRoom(activeRoom.id, userId);
+      setActiveRoom(null);
+      setParticipants([]);
+      toast({ title: "Room Left", description: "You have left the swiping session." });
+    } catch (err) {
+      console.error("Failed to leave room:", err);
+      toast({
+        variant: "destructive",
+        title: "Could not leave",
+        description:
+          err instanceof Error ? err.message : "You're still in the room -- please try again.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const copyRoomCode = () => {

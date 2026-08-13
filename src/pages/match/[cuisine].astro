@@ -6,6 +6,7 @@
 export const prerender = false;
 
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import AppHeader from "../../components/shared/AppHeader.astro";
 import { MatchReveal } from "../../components/match/match-reveal";
 import { Toaster } from "../../components/ui/toaster";
 
@@ -19,6 +20,7 @@ if (!cuisine || !roomCode || roomCode.trim().length !== 4) {
 
 <BaseLayout title="It's a Match! · Food Swipe" description="Your group matched on a cuisine.">
   <div class="min-h-screen bg-background">
+    <AppHeader roomCode={roomCode} />
     <MatchReveal cuisineId={cuisine} roomCode={roomCode} client:load />
   </div>
   <Toaster client:load />

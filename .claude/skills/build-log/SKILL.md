@@ -27,6 +27,14 @@ Astro (React islands) + Tailwind v4 + Supabase (Postgres/Auth/Realtime) + Vercel
 | 5 — Monetization hooks | ⬜ not started | Affiliate delivery links first |
 | 6 — Deploy & polish | ⬜ not started | Vercel, analytics, Lighthouse pass |
 
+**Post-Phase-3 hardening passes** (not numbered phases — corrective work driven by running the app for real):
+
+| Pass | Status | Notes |
+|---|---|---|
+| Live e2e harness | ✅ done | `scripts/test-e2e.mjs` against a real Supabase project; found 6 bugs → migrations `0009`-`0011`. See "Testing" below |
+| Nav / app shell | ✅ done | `AppHeader.astro` + real server-side leave + dead-end audit. See "Navigation & app shell" below |
+| Multi-dish model | ⏳ code done, **migration pending user** | `0012_dish_matches.sql` written but NOT yet applied to the live project — the user must run it in the SQL editor. Everything else (types, UI, tests) is in place and verified by `astro check` + `npm run build` |
+
 ## Phase 2 detail — Swipe & matching core (done)
 
 Built directly against `swipe_sessions`/`room_participants`/`swipes`/`dish_swipes` via the Supabase client (RLS-guarded) — no new API routes for room/swipe logic, per the "lightweight" direction of this rewrite. The only HTTP call this phase makes is to the teammate's Phase 3 `/api/suggest-cuisines` (match fallback).
@@ -47,7 +55,7 @@ Built directly against `swipe_sessions`/`room_participants`/`swipes`/`dish_swipe
 - Match reveal page's restaurant list — currently a placeholder + manual text-entry bridge (see Task 8 above). Needs wiring to `/api/find-restaurants` (which now exists) plus the reference app's geolocation UX.
 - Dish deck contents — currently the matched cuisine's generic 5-dish list from the `cuisines` catalog (`dishes text[]`), not a real per-restaurant menu. `/api/restaurant-menu` now exists but wiring it into `dish-swipe-area.tsx` was left out (no menu-endpoint HTTP contract was specified for this phase to build against, unlike `suggest-cuisines`). Swapping the dish source only touches `dish-swipe-area.tsx`'s data-fetch, not the schema/RLS/trigger.
 - Delivery-price/order/book-a-table integration from the reference app's `dish-swipe-area.tsx` was dropped entirely (not ported, not stubbed) — it depended on a delivery-price AI flow this rebuild doesn't have a contract for either.
-- "Leave room" only clears the local cache; there's no server-side participant removal (no DELETE policy on `room_participants`). A participant who leaves still counts toward match-unanimity denominators until Phase 4 adds a real leave/remove flow.
+- ~~"Leave room" only clears the local cache~~ — **fixed**, see "Navigation & app shell" below. `0009` added the DELETE policy and `src/lib/rooms.ts`'s `leaveRoom()` now really removes the `room_participants` row.
 - Solo swiping (no room) is not implemented in this phase's `/swipe` route — explicitly deferred to Phase 4's "solo mode" per the roadmap.
 
 ## Phase 3 detail — Restaurant discovery & AI (done)
@@ -82,6 +90,8 @@ Four P0 gaps were found in the original app and are being fixed *during* the reb
 3. **Match fallback** — unanimous-right-swipe matching can stall for 3-4 person rooms. After the deck is exhausted with no match, auto-trigger AI cuisine suggestions rather than leaving the room stuck.
 4. **Dish-level room sync** — the old app synced the cuisine swipe across the room but let each person pick the final dish alone. The rebuild extends group sync all the way to dish choice.
 
+5. **Multiple dishes per meal (the multi-dish model)** — a dish reaching unanimity must NOT end the session. Groups sitting down together order several dishes: a starter, a couple of mains, a dessert. The original design set `swipe_sessions.status = 'dish_matched'` plus scalar `matched_restaurant_name`/`matched_dish_name` on the first agreed dish and the UI rendered a terminal "The group decided!" screen — found in real two-user testing, and wrong twice over: it ended the session with most of the order still undecided, and nothing in the schema or UI could move a room back out of `dish_matched`. As of `0012_dish_matches.sql` an agreed dish is an **appended fact** in `dish_matches`, the room's status is untouched, and the group keeps swiping the rest of the menu with a live-updating agreed list. The only thing that ends a dish session is the user pressing "Done — show our order", which is reversible. Don't reintroduce a terminal dish state.
+
 Also: sponsored restaurant placement (a planned revenue channel) must never be allowed to influence the cuisine-match algorithm itself — only which restaurants surface after a cuisine is already matched. Keep this guardrail in mind if/when building monetization hooks (Phase 5).
 
 ## Schema (supabase/migrations/)
@@ -94,8 +104,28 @@ Also: sponsored restaurant placement (a planned revenue channel) must never be a
 - `0006_match_detection.sql` — `check_swipe_match()` trigger on `swipes` (`AFTER INSERT OR UPDATE`): sets `swipe_sessions.status = 'matched'` / `matched_cuisine_id` the moment every current `room_participants` row has a `right` swipe on the same `cuisine_id`. SECURITY DEFINER, guarded against re-firing once matched.
 - `0007_dish_swipes.sql` — new `dish_swipes` table (`session_id, user_id, restaurant_name text, dish_name text, direction, created_at`; `restaurant_name` is plain text, not a FK — no restaurants table exists yet), same RLS shape as `swipes`. Adds `matched_restaurant_name`/`matched_dish_name` columns and a `dish_matched` status value to `swipe_sessions` (widens the status check constraint). `check_dish_swipe_match()` trigger mirrors `check_swipe_match()` one level down, scoped to `(restaurant_name, dish_name)`.
 - `0008_enable_realtime.sql` — adds `swipe_sessions`/`room_participants`/`swipes`/`dish_swipes` to the `supabase_realtime` publication (idempotent, guarded via `pg_publication_tables`). Needed for Realtime `postgres_changes` subscriptions to fire at all — RLS alone doesn't enable it.
+- `0009_fix_join_match_realtime.sql` — four bugs the live e2e suite found the first time 0001-0008 ever ran against real Postgres. (1) `join_room_by_code()` always failed with an ambiguous `status` reference, so **nobody could ever join a room**; (2) both match triggers gated on `participant_count > 0`, so a host swiping alone matched instantly — now `>= 2`; (3) room creation's two client inserts could strand an unrecoverable room, replaced by an atomic `create_room()` SECURITY DEFINER RPC plus a creator-DELETE policy; (4) Realtime delivered zero events until `replica identity full` was set on every published table. Also adds the `room_participants` **DELETE policy** ("leave own row") that makes a real leave possible.
+- `0010_fix_create_room_codegen.sql` — `create_room()` used `gen_random_bytes()` (pgcrypto, installed in the `extensions` schema) while declared `set search_path = public`, so every call failed. Room codes are now four random A-Z letters from built-in SQL; they're a human-typeable handle, not a security boundary.
+- `0011_creator_can_see_own_rooms.sql` — `swipe_sessions`' only SELECT policy required a participant row, so a creator missing one couldn't SELECT their own room; since PostgREST issues `DELETE ... RETURNING` and RETURNING is subject to the SELECT policy, 0009's creator-delete policy silently deleted nothing. Policy widened to "participant **or** creator". Non-participants remain fully locked out.
+- `0012_dish_matches.sql` — **the multi-dish model** (see product decision 5 above). New `dish_matches` table (`session_id`, `restaurant_name`, `dish_name`, `matched_at`, unique on `(session_id, restaurant_name, dish_name)`), SELECT-only RLS via the existing `is_room_participant()` helper. **No client write policy at all** — the only writer is the SECURITY DEFINER trigger, so a participant cannot forge "the table agreed on this". `check_dish_swipe_match()` rewritten: on unanimity it `insert ... on conflict do nothing` into `dish_matches` and **leaves `swipe_sessions` completely alone** (the `>= 2` participant floor and current-participants-only counting from 0009 are unchanged). Added to the `supabase_realtime` publication **and** given `replica identity full` — both are required, publication membership alone delivers silently nothing. Deliberately does NOT drop `matched_restaurant_name`/`matched_dish_name` or narrow the status check constraint: dropping columns on a live database is riskier than ignoring them, so the app simply stopped reading/writing them.
 
 **Dietary tag vocabulary** (shared contract between the cuisine seed data and the profile restriction data — keep these in sync, don't let them drift): `vegetarian`, `vegan`, `halal`, `gluten-free`, `nut-free`, `dairy-free`, `shellfish-free`. A cuisine is eligible for a room if its `dietary_tags` is a superset of the union of all participants' `dietary_restrictions` in that room.
+
+## Navigation & app shell
+
+Real two-user testing found the app had **no navigation at all**: `BaseLayout.astro` rendered a bare `<slot />`, so once a user reached `/swipe` or `/match/...` there was no logo, no way home, no way to leave the room, and no log out — `/logout` existed but was linked only from the landing page. Every in-app page was a dead end.
+
+- **`src/components/shared/AppHeader.astro`** — the persistent header, used by `rooms.astro`, `rooms/join.astro`, `swipe.astro`, `match/[cuisine].astro`, `match/[cuisine]/[restaurant].astro`. **Not** on the landing page, which has its own signed-in/signed-out nav. Mostly static markup on purpose: the logo mark is the same inline SVG as `index.astro`'s (kept inline rather than importing `shared/logo.tsx`, which is React and would mean hydrating an island just to draw a link), and Rooms / Log out are plain `<a>`.
+- **`src/components/shared/room-controls.tsx`** — the only part that needs to be an island, because the active room is client state. Takes an optional `roomCode` prop from pages that know one (`?room=CODE`) and otherwise falls back to the `foodswipe_active_room` localStorage cache; resolves the room id via `fetchRoomByCode()` because the server-side leave needs it. Renders the room-code chip (always visible while in a room) and "Leave room".
+- **Leaving is now real.** `leaveRoom()` DELETEs the user's `room_participants` row via 0009's policy, and clears localStorage **only after** the delete succeeds. Order matters: clearing first and then failing would hide the room from the user while still counting them in the unanimity denominator — a **ghost participant blocks every future match in that room**, since both triggers count `room_participants` rows. `rooms-dashboard.tsx`'s "Leave Room" button was the localStorage-only version and now goes through the same function.
+
+**Other dead ends found and fixed in the same audit** (all were states a user could reach with no forward or backward action): the cuisine deck's exhausted state offered only an AI-suggestions button that could legitimately return nothing, leaving no way back (`swipe-area.tsx` — added "Back to the room"); the match-reveal page had no backward action at all and its only control was a form you couldn't submit without typing a restaurant name (`match-reveal.tsx` — added "Back to the room"); the match-reveal page also rendered its full reveal for a room that didn't exist or that the user had left, then bounced off the dish page's redirect with no explanation (added an explicit "This room isn't available" state); and the project had **no 404 page**, so any stale share link landed on Astro's unstyled built-in 404 with no link back into the app (added `src/pages/404.astro`).
+
+## Multi-dish sessions (UI side of `0012`)
+
+- **`src/lib/dish-matches.ts`** — read-only accessor for `dish_matches` (`fetchDishMatches(sessionId, restaurantName?)`, oldest first). Read failures (including "table not found" before the migration is applied) return `[]` rather than throwing: a missing agreed-list must never blank out a usable swipe deck.
+- **`src/lib/rooms.ts`** — `RoomStatus` is now `"waiting" | "swiping" | "matched"`; `'dish_matched'` is gone from the app's type system, and `RoomState` no longer carries `matchedRestaurantName`/`matchedDishName` (they aren't even SELECTed any more). `subscribeToRoom()` gained an `onDishMatch` handler on the `dish_matches` table.
+- **`src/components/dishes/dish-swipe-area.tsx`** — the terminal "The group decided!" screen is gone. The deck is now derived (`allDishes` minus dishes I've swiped minus dishes the group already agreed on), so an agreed dish leaves the deck instead of being swipeable again and shows up in a running **"Agreed so far"** panel that grows live over Realtime. "Done — show our order" is the only thing that ends the session, it's user-initiated, and it's reversible ("Keep swiping"). The deck-exhausted case (including zero agreed dishes) renders explicit onward actions rather than dead-ending. Match detection is still 100% server-side — the component reads `dish_matches` and reacts, it never decides a match.
 
 ## Key engineering patterns established (reuse, don't reinvent)
 
@@ -108,16 +138,32 @@ Also: sponsored restaurant placement (a planned revenue channel) must never be a
 - **Realtime**: adding a table's RLS policies is not sufficient for `postgres_changes` subscriptions to fire — the table must also be added to the `supabase_realtime` publication (`0008_enable_realtime.sql`). Do this in the same migration set that creates the table, not as an afterthought.
 - **AI calls**: no Genkit in this rebuild — direct Gemini REST calls only, kept lightweight. Same for restaurant search (direct Geoapify fetch, no wrapper). Phase 3 built the concrete pattern: `src/lib/ai/gemini.ts`'s `generateGeminiJson<T>()` (model `gemini-2.5-flash`, `responseSchema` for structured JSON, `thinkingConfig.thinkingBudget: 0` for these non-reasoning tasks) — reuse it, don't re-implement the fetch per endpoint. Any call from client code to a teammate's API route (e.g. Phase 2's call to `/api/suggest-cuisines`) must swallow failures into a safe empty/default result — never let a 404 or network error block the calling UI.
 
-## Manual steps only the user can do (still pending as of Phase 1)
+## Testing — the live integration harness
 
-1. Create a hosted Supabase project at supabase.com/dashboard, paste `PUBLIC_SUPABASE_URL` / `PUBLIC_SUPABASE_ANON_KEY` into `.env` (gitignored, not committed).
-2. Run the migration files against that project (SQL editor, or `supabase db push` if the CLI is linked).
-3. Configure a Google OAuth client in the Supabase dashboard for real Google sign-in (the code path is built and correct, just untestable without this).
-4. Decide on a GitHub remote — nothing has been pushed anywhere yet, only local commits exist.
+There **is** a live, fully-migrated Supabase project now, and `scripts/` runs real assertions against it through the **anon key only** (no service_role key exists in this project on purpose — a test that bypassed RLS would prove nothing about whether the app works).
 
-(As of Phase 3: `GEMINI_API_KEY` and `GEOAPIFY_API_KEY` are no longer pending — real working keys are in `.env`, copied from the reference project. Only the Supabase project setup above is still outstanding.)
+```
+node --env-file=.env scripts/seed-test-users.mjs    # 4 real users, password FoodSwipeTest!2026
+node --env-file=.env scripts/test-e2e.mjs           # the suite; exits non-zero on any failure
+```
 
-No live Supabase project has existed at any point during this build, including through Phase 2. Every phase's Supabase-dependent code has been verified via typecheck/build/dev-server-render only, never a real end-to-end auth, RLS, Realtime, or trigger test — this matters more for Phase 2 than earlier phases, since its correctness (the join RPC, the two match-detection triggers, the dietary filter, Realtime delivery) is genuinely unverified beyond code review + hand-traced logic until run against a real project. Re-verify all of it (the 3-participant match trace in `0006_match_detection.sql`/`0007_dish_swipes.sql`'s comments, the join-by-code RPC, a live Realtime subscription) once step 1 below is done.
+`scripts/_shared.mjs` holds the four test users, one isolated client each (`persistSession: false`, so four "browsers" in one process with no cross-talk), and `waitFor()` for trigger/Realtime round trips. `scripts/test-e2e.mjs` has a tiny harness — `section()`, `assert(name, condition, detail)` (**name first**), `assertEq()`, `assertNoError()`. It deliberately mirrors the app's *wire* behaviour (same RPC names, column lists, upsert `onConflict` keys) rather than importing `src/lib/*.ts`, which need `import.meta.env` and a browser client.
+
+This suite is not decorative: running it the first time found and fixed four real bugs (migration `0009`) plus two more (`0010`, `0011`), including "nobody could ever join a room" and "Realtime delivered zero events". Treat every failure as a real defect until proven otherwise, and never weaken an assertion to make it pass.
+
+Coverage as of the multi-dish change: auth, room create/join + status auto-flip, `get_room_profiles()` (incl. no-phone-leak), dietary filter against real seeded tags, cuisine match negative/positive/late-joiner/UPDATE paths, RLS lockout + impersonation for a non-participant, `create_room()` atomicity, Realtime for both `swipe_sessions` and `dish_matches`, the full multi-dish model (2-of-3 no row / 3-of-3 row / **multiple distinct dishes in one session** / no duplicate on re-swipe / room status unchanged / no client INSERT path), and a real leave (participant row deleted, departed member loses read access, remaining pair can then still reach unanimity, lone member still can't match alone).
+
+**Anonymous sign-ins are still DISABLED in the dashboard**, so the guest-join path remains untestable — the suite prints a SKIP for it. That is a dashboard toggle, not a code bug.
+
+## Manual steps only the user can do
+
+1. ~~Create a hosted Supabase project~~ — done; `PUBLIC_SUPABASE_URL` / `PUBLIC_SUPABASE_ANON_KEY` are in `.env` (gitignored).
+2. **Run `supabase/migrations/0012_dish_matches.sql` in the SQL editor.** Migrations `0001`-`0011` are already applied and are treated as immutable — write `0013+` for anything further, never edit an applied file. Until 0012 is applied the multi-dish tests in the suite fail with `PGRST205 Could not find the table 'public.dish_matches'`, and the app's agreed-dish list is simply always empty (it degrades, it doesn't crash). `supabase/ALL_MIGRATIONS.sql` is a stale snapshot of 0001-0008 used for the original bulk apply — don't re-run it.
+3. Turn on **Anonymous sign-ins** (Auth > Sign In / Providers) to make the guest-join path testable.
+4. Configure a Google OAuth client in the Supabase dashboard for real Google sign-in (the code path is built and correct, just untestable without this).
+5. Decide on a GitHub remote — nothing has been pushed anywhere yet, only local commits exist.
+
+(`GEMINI_API_KEY` / `GEOAPIFY_API_KEY` are real working keys in `.env`, copied from the reference project.)
 
 ## How to resume after a context clear
 

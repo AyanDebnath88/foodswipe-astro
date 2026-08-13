@@ -161,6 +161,29 @@ async function dishSwipe(client, sessionId, userId, restaurantName, dishName, di
     );
 }
 
+/**
+ * Reads the agreed-dish list for a session (supabase/migrations/
+ * 0012_dish_matches.sql). Mirrors src/lib/dish-matches.ts's fetchDishMatches().
+ * Returns the raw error too -- several tests below assert on it (RLS).
+ */
+async function fetchDishMatches(client, sessionId) {
+  const { data, error } = await client
+    .from("dish_matches")
+    .select("id, session_id, restaurant_name, dish_name, matched_at")
+    .eq("session_id", sessionId)
+    .order("matched_at", { ascending: true });
+  return { rows: data ?? [], error };
+}
+
+/** Mirrors src/lib/rooms.ts leaveRoom()'s server-side half. */
+async function leaveRoom(client, roomId, userId) {
+  return client
+    .from("room_participants")
+    .delete({ count: "exact" })
+    .eq("room_id", roomId)
+    .eq("user_id", userId);
+}
+
 // Mirrors src/lib/dietary.ts (pure functions, no Supabase import).
 function unionDietaryRestrictions(participants) {
   const union = new Set();
@@ -411,30 +434,53 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
-  section("09 dish-level unanimity (dish_swipes + check_dish_swipe_match)");
+  section("09 dish unanimity APPENDS to dish_matches (does not end the session)");
+  //
+  // The multi-dish model (supabase/migrations/0012_dish_matches.sql). The old
+  // behaviour asserted here was: 3/3 flips swipe_sessions.status to
+  // 'dish_matched' and writes the scalar matched_dish_name -- i.e. the
+  // session ends after ONE dish. That is the bug being fixed, so these
+  // assertions now demand the opposite.
   // -------------------------------------------------------------------------
+  const RESTAURANT = "Test Bistro";
+  const DISH_1 = "Margherita Pizza";
+  const DISH_2 = "Garlic Bread";
   {
-    const restaurant = "Test Bistro";
-    const dish = "Margherita Pizza";
+    assertNoError("A right-swipes dish 1", (await dishSwipe(A.client, room2.id, A.user.id, RESTAURANT, DISH_1, "right")).error);
+    assertNoError("B right-swipes dish 1", (await dishSwipe(B.client, room2.id, B.user.id, RESTAURANT, DISH_1, "right")).error);
+    await sleep(600);
 
-    assertNoError("A right-swipes dish", (await dishSwipe(A.client, room2.id, A.user.id, restaurant, dish, "right")).error);
-    assertNoError("B right-swipes dish", (await dishSwipe(B.client, room2.id, B.user.id, restaurant, dish, "right")).error);
-    await sleep(400);
-    let row = await fetchRoom(A.client, room2.id);
-    assertEq("2/3 dish right-swipes -> still 'matched', not 'dish_matched'", row?.status, "matched");
+    const partial = await fetchDishMatches(A.client, room2.id);
+    assertNoError("dish_matches readable by a participant", partial.error);
+    assertEq("2 of 3 right-swipes -> NO dish_matches row", partial.rows.length, 0);
+    assertEq("room status unaffected by a partial dish vote", (await fetchRoom(A.client, room2.id))?.status, "matched");
 
-    assertNoError("C right-swipes dish", (await dishSwipe(C.client, room2.id, C.user.id, restaurant, dish, "right")).error);
-    const res = await waitFor(() => fetchRoom(A.client, room2.id), (r) => r?.status === "dish_matched");
-    assert("3/3 -> check_dish_swipe_match() fired", res.ok, `status=${res.value?.status} after ${res.waitedMs}ms`);
-    assertEq("matched_restaurant_name", res.value?.matched_restaurant_name, restaurant);
-    assertEq("matched_dish_name", res.value?.matched_dish_name, dish);
+    assertNoError("C right-swipes dish 1 (completes it)", (await dishSwipe(C.client, room2.id, C.user.id, RESTAURANT, DISH_1, "right")).error);
+    const res = await waitFor(
+      () => fetchDishMatches(A.client, room2.id),
+      (r) => r.rows.length >= 1,
+      { timeoutMs: 8000 }
+    );
+    assert(
+      "3 of 3 -> check_dish_swipe_match() INSERTs a dish_matches row",
+      res.ok,
+      `rows=${JSON.stringify(res.value.rows)} err=${res.value.error?.message ?? "none"} after ${res.waitedMs}ms`
+    );
+    if (res.ok) {
+      assertEq("dish_matches.dish_name", res.value.rows[0].dish_name, DISH_1);
+      assertEq("dish_matches.restaurant_name", res.value.rows[0].restaurant_name, RESTAURANT);
+      assert("dish_matches.matched_at is populated", Boolean(res.value.rows[0].matched_at));
+    }
 
-    // Scoping: a different restaurant with the same dish name is a separate vote.
-    const { data: rows } = await A.client
-      .from("dish_swipes")
-      .select("user_id, restaurant_name, dish_name, direction")
-      .eq("session_id", room2.id);
-    assertEq("exactly 3 dish_swipes rows", (rows ?? []).length, 3);
+    // The whole point of the new model: the room keeps going.
+    const row = await fetchRoom(A.client, room2.id);
+    assertEq("room status UNCHANGED by a dish match (no 'dish_matched')", row?.status, "matched");
+    assertEq("scalar matched_dish_name is no longer written", row?.matched_dish_name, null);
+    assertEq("scalar matched_restaurant_name is no longer written", row?.matched_restaurant_name, null);
+
+    // Every participant, not just the creator, must see the agreed dish.
+    const asC = await fetchDishMatches(C.client, room2.id);
+    assertEq("non-creator C also reads the dish_matches row", asC.rows.length, 1);
   }
 
   // -------------------------------------------------------------------------
@@ -449,6 +495,24 @@ async function main() {
 
     const { data: dsw } = await D.client.from("dish_swipes").select("id").eq("session_id", room2.id);
     assertEq("D cannot SELECT the room's dish_swipes", (dsw ?? []).length, 0);
+
+    // dish_matches carries what a private group decided to eat -- a
+    // non-participant must not be able to read it. Its only SELECT policy
+    // goes through is_room_participant(session_id) (0012).
+    const dm = await fetchDishMatches(D.client, room2.id);
+    assertEq("D cannot SELECT the room's dish_matches (RLS)", dm.rows.length, 0);
+
+    // ...and there is no client write path at all: no INSERT policy exists,
+    // so nobody can fabricate "the table agreed on this", not even a real
+    // participant of the room.
+    const { error: fakeErr } = await A.client
+      .from("dish_matches")
+      .insert({ session_id: room2.id, restaurant_name: "Forged Diner", dish_name: "Forged Dish" });
+    assert(
+      "even participant A cannot INSERT a dish_matches row (trigger-only writes)",
+      Boolean(fakeErr),
+      "insert unexpectedly succeeded -- a client can forge a group decision"
+    );
 
     const { data: parts } = await D.client.from("room_participants").select("user_id").eq("room_id", room2.id);
     assertEq("D cannot SELECT the room's participants", (parts ?? []).length, 0);
@@ -647,6 +711,209 @@ async function main() {
         .eq("room_id", rpcRoom.id);
       assert("RPC-created room has exactly 1 participant (the creator)", pCount === 1, `got ${pCount}`);
     }
+  }
+
+  // -------------------------------------------------------------------------
+  section("14 MULTI-DISH: a session agrees on several dishes (core regression)");
+  //
+  // This is the regression the whole 0012 change exists for. Under the old
+  // model room2 would be sitting in status 'dish_matched' right now and no
+  // further dish could ever be agreed in it. Re-uses room2 (A/B/C), which
+  // already agreed on DISH_1 back in section 09.
+  // -------------------------------------------------------------------------
+  {
+    assertNoError("A right-swipes dish 2", (await dishSwipe(A.client, room2.id, A.user.id, RESTAURANT, DISH_2, "right")).error);
+    assertNoError("B right-swipes dish 2", (await dishSwipe(B.client, room2.id, B.user.id, RESTAURANT, DISH_2, "right")).error);
+    await sleep(600);
+    assertEq(
+      "2 of 3 on dish 2 -> still just the 1 agreed dish",
+      (await fetchDishMatches(A.client, room2.id)).rows.length,
+      1
+    );
+
+    assertNoError("C right-swipes dish 2 (completes it)", (await dishSwipe(C.client, room2.id, C.user.id, RESTAURANT, DISH_2, "right")).error);
+    const res = await waitFor(
+      () => fetchDishMatches(A.client, room2.id),
+      (r) => r.rows.length >= 2,
+      { timeoutMs: 8000 }
+    );
+    assert(
+      "a SECOND dish reaches unanimity in the same session",
+      res.ok,
+      `rows=${JSON.stringify(res.value.rows.map((r) => r.dish_name))} after ${res.waitedMs}ms -- if this is stuck at 1, the session terminated on the first dish`
+    );
+    assertEq(
+      "both dishes are on the order, in the order they were agreed",
+      res.value.rows.map((r) => r.dish_name),
+      [DISH_1, DISH_2]
+    );
+    assertEq(
+      "room STILL not terminated after two dish matches",
+      (await fetchRoom(A.client, room2.id))?.status,
+      "matched"
+    );
+
+    // Idempotency: the unique (session_id, restaurant_name, dish_name) key
+    // plus `on conflict do nothing` must absorb a re-vote on a settled dish.
+    // Round-tripping right -> left -> right guarantees the AFTER UPDATE
+    // trigger actually re-runs rather than being optimised away.
+    assertNoError("C re-swipes dish 1 LEFT", (await dishSwipe(C.client, room2.id, C.user.id, RESTAURANT, DISH_1, "left")).error);
+    await sleep(400);
+    assertNoError("C re-swipes dish 1 RIGHT again", (await dishSwipe(C.client, room2.id, C.user.id, RESTAURANT, DISH_1, "right")).error);
+    await sleep(800);
+    const after = await fetchDishMatches(A.client, room2.id);
+    assertEq("re-swiping an agreed dish creates NO duplicate row", after.rows.length, 2);
+    const dish1Rows = after.rows.filter((r) => r.dish_name === DISH_1);
+    assertEq("exactly one dish_matches row for dish 1", dish1Rows.length, 1);
+
+    // A dish nobody agreed on must not appear.
+    assert(
+      "only unanimously-agreed dishes are listed",
+      after.rows.every((r) => [DISH_1, DISH_2].includes(r.dish_name)),
+      `unexpected: ${after.rows.map((r) => r.dish_name).join(", ")}`
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  section("15 Realtime: a subscriber receives the dish_matches INSERT");
+  //
+  // This is how every member's agreed-dish list grows live. Needs BOTH
+  // publication membership and `replica identity full` on dish_matches
+  // (0012) -- with only the former, Supabase silently delivers nothing.
+  // -------------------------------------------------------------------------
+  {
+    const room = await createRoom(A.client, A.user.id);
+    await joinByCode(B.client, room.code);
+    await joinByCode(C.client, room.code);
+
+    const restaurant = "Realtime Grill";
+    const dish = "Live Update Laksa";
+    const events = [];
+    let subscribeStatus = "(never called back)";
+    let subscribeError;
+
+    const channel = C.client.channel(`room:${room.id}`).on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "dish_matches", filter: `session_id=eq.${room.id}` },
+      (payload) => events.push(payload)
+    );
+
+    const subscribed = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), 15000);
+      channel.subscribe((status, err) => {
+        subscribeStatus = status;
+        if (err) subscribeError = err;
+        if (status === "SUBSCRIBED") {
+          clearTimeout(timer);
+          resolve(true);
+        }
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          clearTimeout(timer);
+          resolve(false);
+        }
+      });
+    });
+
+    assert(
+      "C's dish_matches channel reaches SUBSCRIBED",
+      subscribed,
+      `status=${subscribeStatus}${subscribeError ? ` err=${subscribeError.message ?? subscribeError}` : ""}`
+    );
+
+    if (subscribed) {
+      await sleep(500);
+      // C votes first so the match is completed by SOMEONE ELSE -- the case
+      // the live-updating UI actually depends on.
+      await dishSwipe(C.client, room.id, C.user.id, restaurant, dish, "right");
+      await dishSwipe(A.client, room.id, A.user.id, restaurant, dish, "right");
+      await sleep(300);
+      await dishSwipe(B.client, room.id, B.user.id, restaurant, dish, "right");
+
+      const got = await waitFor(
+        async () => events,
+        (e) => e.some((p) => p.eventType === "INSERT" && p.new?.dish_name === dish),
+        { timeoutMs: 12000, intervalMs: 250 }
+      );
+      assert(
+        "C receives the dish_matches INSERT over Realtime",
+        got.ok,
+        `events: ${JSON.stringify(events.map((p) => ({ type: p.eventType, dish: p.new?.dish_name })))} -- publication membership AND replica identity full are both required`
+      );
+      // DB truth check, independent of Realtime.
+      assertEq(
+        "DB confirms the dish match happened",
+        (await fetchDishMatches(C.client, room.id)).rows.map((r) => r.dish_name),
+        [dish]
+      );
+    }
+
+    await C.client.removeChannel(channel);
+  }
+
+  // -------------------------------------------------------------------------
+  section("16 leaving a room really removes the participant (no ghost voter)");
+  //
+  // "Leave Room" used to be a localStorage clear only. Because both match
+  // triggers count room_participants rows as the unanimity denominator, a
+  // departed member kept blocking every future match in that room. 0009
+  // added the DELETE policy; src/lib/rooms.ts leaveRoom() now uses it.
+  // -------------------------------------------------------------------------
+  {
+    const room = await createRoom(A.client, A.user.id);
+    await joinByCode(B.client, room.code);
+    await joinByCode(C.client, room.code);
+    assertEq("room starts with 3 participants", await participantCount(A.client, room.id), 3);
+
+    const restaurant = "Leaver's Diner";
+    const dish = "House Special";
+
+    await dishSwipe(A.client, room.id, A.user.id, restaurant, dish, "right");
+    await dishSwipe(B.client, room.id, B.user.id, restaurant, dish, "right");
+    await sleep(600);
+    assertEq(
+      "2 of 3 -> no dish agreed while C is still in the room",
+      (await fetchDishMatches(A.client, room.id)).rows.length,
+      0
+    );
+
+    const { error: leaveErr, count: leaveCount } = await leaveRoom(C.client, room.id, C.user.id);
+    assertNoError("C can DELETE her own room_participants row", leaveErr);
+    assertEq("exactly 1 participant row deleted", leaveCount, 1);
+    assertEq("room now has 2 participants", await participantCount(A.client, room.id), 2);
+
+    // Proof the leave was real and not just local: RLS keys off
+    // room_participants, so a departed member loses read access entirely.
+    assertEq("C can no longer read the room at all (really not a participant)", await fetchRoom(C.client, room.id), null);
+
+    // The trigger only re-evaluates on a swipe, so leaving doesn't
+    // retroactively complete a match -- the next vote does. B re-asserting
+    // her existing right-swipe is enough to re-run the check.
+    assertNoError("B re-swipes the dish after C left", (await dishSwipe(B.client, room.id, B.user.id, restaurant, dish, "right")).error);
+    const res = await waitFor(
+      () => fetchDishMatches(A.client, room.id),
+      (r) => r.rows.length >= 1,
+      { timeoutMs: 8000 }
+    );
+    assert(
+      "the remaining pair CAN now reach unanimity (departed member no longer counts)",
+      res.ok,
+      `rows=${JSON.stringify(res.value.rows.map((r) => r.dish_name))} after ${res.waitedMs}ms -- a ghost participant is still inflating the denominator`
+    );
+    assertEq("the agreed dish is the one they both liked", res.value.rows[0]?.dish_name, dish);
+
+    // And the 2-participant floor from 0009 still holds: B leaving too must
+    // NOT let A match alone in a fresh room.
+    const solo = await createRoom(A.client, A.user.id);
+    await joinByCode(B.client, solo.code);
+    await leaveRoom(B.client, solo.id, B.user.id);
+    assertEq("solo room is down to 1 participant", await participantCount(A.client, solo.id), 1);
+    await dishSwipe(A.client, solo.id, A.user.id, restaurant, dish, "right");
+    await sleep(800);
+    assertEq(
+      "a lone remaining member cannot 'unanimously' agree with herself",
+      (await fetchDishMatches(A.client, solo.id)).rows.length,
+      0
+    );
   }
 
   return finish(started);

@@ -5,12 +5,14 @@
 // so this page needs no server-side query-string read and can stay on
 // Astro's default static/prerendered output.
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import AppHeader from "../../components/shared/AppHeader.astro";
 import { JoinByLink } from "../../components/rooms/join-by-link";
 import { Toaster } from "../../components/ui/toaster";
 ---
 
 <BaseLayout title="Join Room · Food Swipe" description="Join a Food Swipe group swiping room.">
   <div class="min-h-screen bg-background">
+    <AppHeader />
     <JoinByLink client:load />
   </div>
   <Toaster client:load />
