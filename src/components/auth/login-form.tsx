@@ -56,7 +56,7 @@ export function LoginForm() {
         title: "Welcome back!",
         description: `Logged in as ${data.user?.user_metadata?.display_name ?? data.user?.email ?? "you"}.`,
       });
-      window.location.href = "/";
+      window.location.href = "/rooms";
     } catch (error) {
       console.error("Login error:", error);
       toast({

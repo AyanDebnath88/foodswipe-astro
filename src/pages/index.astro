@@ -13,7 +13,24 @@
 //     src/styles/global.css. No JS, no <canvas>, nothing to hydrate.
 //   - No React islands, no client:* directives anywhere on this page --
 //     this is plain Astro + Tailwind, so it ships zero client JS.
+//   - prerender = false: the nav/CTA below branch on whether the visitor is
+//     signed in, so this page renders per-request instead of being baked at
+//     build time. This is server-side rendering only -- still zero client JS
+//     shipped, nothing hydrates. Without it, a signed-in user landed here
+//     (e.g. straight after signup) saw "Sign In / Sign Up Free" and a CTA
+//     pointing back at /signup, with no way into the app.
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const prerender = false;
+
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+const isSignedIn = Boolean(user);
+const displayName =
+  (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? "there";
 
 const year = new Date().getFullYear();
 ---
@@ -36,18 +53,37 @@ const year = new Date().getFullYear();
           <span class="font-headline text-2xl font-bold text-foreground">Food Swipe</span>
         </a>
         <nav class="flex items-center">
-          <a
-            href="/login"
-            class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 py-2 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-          >
-            Sign In
-          </a>
-          <a
-            href="/signup"
-            class="ml-2 inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 py-2 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Sign Up Free
-          </a>
+          {isSignedIn ? (
+            <>
+              <a
+                href="/logout"
+                class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 py-2 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                Log out
+              </a>
+              <a
+                href="/rooms"
+                class="ml-2 inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 py-2 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Open App
+              </a>
+            </>
+          ) : (
+            <>
+              <a
+                href="/login"
+                class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md px-4 py-2 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                Sign In
+              </a>
+              <a
+                href="/signup"
+                class="ml-2 inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-4 py-2 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Sign Up Free
+              </a>
+            </>
+          )}
         </nav>
       </header>
 
@@ -58,12 +94,17 @@ const year = new Date().getFullYear();
         <p class="mt-6 max-w-2xl bg-gradient-to-b from-muted-foreground to-muted-foreground/60 bg-clip-text font-body text-lg text-transparent md:text-xl">
           Tired of the endless 'what do you want to eat?' debate? Food Swipe lets you and your friends swipe on cuisines together. When you all swipe right, it's a match!
         </p>
+        {isSignedIn && (
+          <p class="mt-6 font-body text-sm text-muted-foreground">
+            Signed in as <span class="font-semibold text-foreground">{displayName}</span>
+          </p>
+        )}
         <div class="mt-8">
           <a
-            href="/signup"
+            href={isSignedIn ? "/rooms" : "/signup"}
             class="inline-flex h-11 items-center justify-center gap-2 whitespace-nowrap rounded-md bg-primary px-8 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Get Started
+            {isSignedIn ? "Start a Swipe Room" : "Get Started"}
           </a>
         </div>
       </main>

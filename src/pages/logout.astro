@@ -1,0 +1,16 @@
+---
+// Sign out and return to the landing page.
+//
+// Done server-side so the auth cookies are cleared via Set-Cookie on this
+// response -- the session lives in cookies (see src/lib/supabase/client.ts),
+// so clearing it client-side only would leave the server still seeing a
+// signed-in user on the next request. Nothing renders: this always redirects.
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+export const prerender = false;
+
+const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+await supabase.auth.signOut();
+
+return Astro.redirect("/");
+---

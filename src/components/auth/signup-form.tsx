@@ -74,7 +74,7 @@ export function SignupForm() {
         title: "Account Created!",
         description: `Welcome to Food Swipe, ${data.user?.user_metadata?.display_name ?? values.name}!`,
       });
-      window.location.href = "/";
+      window.location.href = "/rooms";
     } catch (error) {
       console.error("Signup error:", error);
       toast({
