@@ -1,0 +1,21 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout>
+  <main class="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+    <h1 class="font-headline text-4xl text-foreground">Food Swipe</h1>
+    <p class="max-w-md font-body text-foreground/80">
+      Astro + Supabase foundation is wired up. Brand tokens (primary, background,
+      accent) and fonts (Belleza / Alegreya) are live.
+    </p>
+    <div class="flex gap-3">
+      <span class="rounded-lg bg-primary px-4 py-2 font-body text-primary-foreground">
+        Primary
+      </span>
+      <span class="rounded-lg bg-accent px-4 py-2 font-body text-accent-foreground">
+        Accent
+      </span>
+    </div>
+  </main>
+</BaseLayout>
