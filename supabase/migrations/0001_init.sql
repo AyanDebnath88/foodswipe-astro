@@ -165,3 +165,59 @@ create policy "swipes: update own swipe as participant"
     user_id = auth.uid()
     and public.is_room_participant(session_id)
   );
+
+-- ---------------------------------------------------------------------------
+-- profiles: let room co-participants see a safe subset of each other's data
+--
+-- The room UI needs every participant's display_name visible to everyone
+-- else in the room (waiting-room list, "who's swiped" indicator), but the
+-- "profiles: select own row" policy above only lets a user see their own row.
+--
+-- The straightforward fix -- add a second SELECT policy such as
+-- "co-participants can view profiles, using is_room_participant-style logic"
+-- -- is NOT used here. Postgres RLS is ROW-level, not column-level: any
+-- policy that makes a co-participant's `profiles` row visible makes *every*
+-- column on that row visible through it, including `phone`. That's a real
+-- PII leak beyond what the UI needs, not a hypothetical one, since `phone`
+-- has no product reason to be shown to other participants.
+--
+-- Instead, expose a SECURITY DEFINER function that returns only the columns
+-- the room UI actually needs, gated by the same room-membership check used
+-- elsewhere. `phone` and `created_at` never appear in its return type, so
+-- there is no code path -- direct table query or RPC -- through which a
+-- co-participant can read another user's phone number; the base table's
+-- own-row-only SELECT policy is untouched and still the only way to reach
+-- `phone` at all.
+--
+-- Column choices:
+--   - display_name: the whole reason for this function (participant list).
+--   - dietary_restrictions: made visible to the group on purpose -- the
+--     product plan's room-level dietary filter needs to see everyone's
+--     restrictions, not just the owner's, so this one can't stay private.
+--   - is_guest: low-sensitivity, useful for a "Guest" badge in the UI.
+--   - phone, created_at: kept private; no UI need to justify exposing them.
+-- ---------------------------------------------------------------------------
+create or replace function public.get_room_profiles(p_room_id uuid)
+returns table (
+  id uuid,
+  display_name text,
+  dietary_restrictions text[],
+  is_guest boolean
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select p.id, p.display_name, p.dietary_restrictions, p.is_guest
+  from public.profiles p
+  join public.room_participants rp on rp.user_id = p.id
+  where rp.room_id = p_room_id
+    -- Gate the whole result set on the caller actually being a participant
+    -- of p_room_id; non-participants get zero rows back, not an error,
+    -- consistent with how the RLS policies elsewhere in this file behave.
+    and public.is_room_participant(p_room_id);
+$$;
+
+revoke all on function public.get_room_profiles(uuid) from public;
+grant execute on function public.get_room_profiles(uuid) to authenticated;
