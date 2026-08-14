@@ -1,0 +1,22 @@
+---
+// Phase 4 — /favorites. Static shell hosting the FavoritesView island; same
+// reasoning as history.astro (client-side auth check, no query string read,
+// so no `prerender = false` needed).
+import BaseLayout from "../layouts/BaseLayout.astro";
+import AppHeader from "../components/shared/AppHeader.astro";
+import { FavoritesView } from "../components/solo/favorites-view";
+import { Toaster } from "../components/ui/toaster";
+---
+
+<BaseLayout
+  title="Saved places · Food Swipe"
+  description="Your own list of restaurants worth going back to."
+>
+  <div class="min-h-screen bg-background">
+    <AppHeader />
+    <div class="py-12">
+      <FavoritesView client:load />
+    </div>
+  </div>
+  <Toaster client:load />
+</BaseLayout>

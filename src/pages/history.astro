@@ -1,0 +1,25 @@
+---
+// Phase 4 — /history. Static shell hosting the HistoryView island, same
+// shape as rooms.astro: the island does its own auth check client-side, so
+// this route needs no `export const prerender = false` and stays on Astro's
+// default static output. It also reads no query string, which is the trap
+// that would force per-request rendering (see the build log's "Astro output
+// mode" pattern).
+import BaseLayout from "../layouts/BaseLayout.astro";
+import AppHeader from "../components/shared/AppHeader.astro";
+import { HistoryView } from "../components/solo/history-view";
+import { Toaster } from "../components/ui/toaster";
+---
+
+<BaseLayout
+  title="Your rooms · Food Swipe"
+  description="What your groups decided, what's still being decided, and how it went."
+>
+  <div class="min-h-screen bg-background">
+    <AppHeader />
+    <div class="py-12">
+      <HistoryView client:load />
+    </div>
+  </div>
+  <Toaster client:load />
+</BaseLayout>
