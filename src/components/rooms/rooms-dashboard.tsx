@@ -32,6 +32,8 @@ import {
   type RoomState,
 } from "@/lib/rooms";
 import { Users, Copy, Plus, LogIn, ArrowRight, UserPlus, Play, Loader2, LogOut, Link2 } from "lucide-react";
+import { errorMessage } from "@/lib/errors";
+import { consumeNotice, currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
 
 export function RoomsDashboard() {
   const { toast } = useToast();
@@ -46,6 +48,24 @@ export function RoomsDashboard() {
     setParticipants(await fetchRoomParticipants(roomId));
   }, []);
 
+  // Show the reason the user was sent here, if they were sent here.
+  //
+  // Redirect reasons used to be toasted immediately before a
+  // `window.location.href = ...`, which tears down the document and the toast
+  // with it -- so "that room isn't available" / "sign in required" were never
+  // actually seen, on any of the three redirect paths. The reason now travels
+  // as a ?notice= CODE (never text -- see src/lib/notices.ts) and is consumed
+  // and stripped from the URL here, so it shows exactly once.
+  useEffect(() => {
+    const notice = consumeNotice();
+    if (!notice) return;
+    toast({
+      variant: notice.variant === "destructive" ? "destructive" : "default",
+      title: notice.title,
+      description: notice.description,
+    });
+  }, [toast]);
+
   // Auth check + resume an in-progress room from localStorage, mirroring
   // the reference app's checkUser()/food_swipe_active_room logic.
   useEffect(() => {
@@ -58,11 +78,9 @@ export function RoomsDashboard() {
       if (cancelled) return;
 
       if (!user) {
-        toast({
-          title: "Sign in required",
-          description: "Please sign in to join or create group swiping rooms.",
-        });
-        window.location.href = "/login";
+        // The toast used to be destroyed by the navigation on the very next
+        // line, so the user was bounced to /login with no explanation at all.
+        redirectWithNotice("/login", "sign-in-required", { redirect: currentPathForRedirect() });
         return;
       }
       setUserId(user.id);
@@ -92,7 +110,12 @@ export function RoomsDashboard() {
       onSessionChange: (room) => {
         setActiveRoom(room);
         if (room.status === "matched" && room.matchedCuisineId) {
-          clearActiveRoom();
+          // NOT clearActiveRoom(). Matching is the HAPPY path and the room is
+          // still very much alive -- the group still has to pick a restaurant
+          // and swipe dishes together. Wiping the active-room cache at the
+          // moment they succeed is what made "Back to the room" from the match
+          // page land on an empty dashboard.
+          saveActiveRoom({ id: room.id, code: room.code });
           toast({
             title: "It's a Match!",
             description: "A consensus was reached! Redirecting to matches...",
@@ -122,7 +145,7 @@ export function RoomsDashboard() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err instanceof Error ? err.message : "Could not create swipe room. Please try again.",
+        description: errorMessage(err, "Could not create swipe room. Please try again."),
       });
     } finally {
       setIsLoading(false);
@@ -151,7 +174,7 @@ export function RoomsDashboard() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: err instanceof Error ? err.message : "Could not join the swipe room.",
+        description: errorMessage(err, "Could not join the swipe room."),
       });
     } finally {
       setIsLoading(false);
@@ -176,8 +199,7 @@ export function RoomsDashboard() {
       toast({
         variant: "destructive",
         title: "Could not leave",
-        description:
-          err instanceof Error ? err.message : "You're still in the room -- please try again.",
+        description: errorMessage(err, "You're still in the room -- please try again."),
       });
     } finally {
       setIsLoading(false);

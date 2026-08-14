@@ -33,8 +33,19 @@ try {
   console.error("Failed to check auth state on /login:", error);
 }
 
+// An already-signed-in visitor is bounced onward -- but to the destination
+// they were actually trying to reach, if one was carried through. Only a
+// same-origin, path-absolute value is honoured (the same rule as
+// src/lib/notices.ts's safeRedirectPath), because a raw ?redirect= would
+// otherwise be an open redirect.
+const requested = Astro.url.searchParams.get("redirect");
+const safeRedirect =
+  requested && requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\")
+    ? requested
+    : null;
+
 if (isAuthenticated) {
-  return Astro.redirect("/");
+  return Astro.redirect(safeRedirect ?? "/rooms");
 }
 ---
 

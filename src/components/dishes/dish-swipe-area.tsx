@@ -107,7 +107,19 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [allDishes, setAllDishes] = useState<Dish[]>([]);
+  // The menu as fetched for THIS restaurant (POST /api/restaurant-menu).
+  const [menuDishes, setMenuDishes] = useState<Dish[]>([]);
+  const [menuState, setMenuState] = useState<"loading" | "ready" | "error">("loading");
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [menuRetryAfter, setMenuRetryAfter] = useState(0);
+  const [menuSource, setMenuSource] = useState<MenuSource | "catalog" | null>(null);
+  // The matched cuisine's generic catalog dishes, kept ONLY as the offline
+  // fallback for when the menu endpoint can't be reached at all.
+  const [catalogDishes, setCatalogDishes] = useState<Dish[]>([]);
+  const [cuisineLabel, setCuisineLabel] = useState<string>("");
+  // The room was deleted out from under us (Realtime DELETE).
+  const [roomClosed, setRoomClosed] = useState(false);
+
   const [mySwipedNames, setMySwipedNames] = useState<Set<string>>(new Set());
   const [myLikedNames, setMyLikedNames] = useState<Set<string>>(new Set());
   const [dishVotes, setDishVotes] = useState<Map<string, Map<string, "left" | "right">>>(new Map());
@@ -123,6 +135,31 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
       ),
     [agreed, restaurantName]
   );
+
+  /**
+   * The full dish set for this restaurant: MY fetched menu, unioned with every
+   * dish name the room has already swiped on or agreed here.
+   *
+   * The union is what makes a generative menu survivable. Two members opening
+   * the same restaurant can be served slightly different lists, and dish_swipes
+   * are scoped by (restaurant_name, dish_name) -- so a dish only one member can
+   * see could never reach unanimity, and the group would silently be unable to
+   * agree on it. Both of the extra sources here are already synced to everyone
+   * over Realtime, so the moment someone votes on a dish I don't have, it
+   * appears in my deck and the room converges on one set without any new
+   * storage or a migration.
+   */
+  const allDishes = useMemo(() => {
+    const byName = new Map<string, Dish>();
+    for (const dish of menuDishes) byName.set(dish.name, dish);
+    for (const name of dishVotes.keys()) {
+      if (!byName.has(name)) byName.set(name, { id: dishIdFor(name), name });
+    }
+    for (const name of agreedNamesHere) {
+      if (!byName.has(name)) byName.set(name, { id: dishIdFor(name), name });
+    }
+    return [...byName.values()];
+  }, [menuDishes, dishVotes, agreedNamesHere]);
 
   const deck = useMemo(
     () => allDishes.filter((d) => !mySwipedNames.has(d.name) && !agreedNamesHere.has(d.name)),
@@ -171,6 +208,63 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
     [toast]
   );
 
+  /**
+   * Fetches the real menu for this restaurant.
+   *
+   * Separated out (and re-callable) because every one of its failure modes has
+   * to leave the user somewhere they can act, not on an empty deck. The deck
+   * being empty IS the dead end this whole change exists to remove, so an
+   * error here must never be swallowed into `[]`.
+   *
+   *   * 429 -- the routes are per-IP rate limited and a whole room opening the
+   *     same restaurant at once genuinely trips it. Surfaced with the real
+   *     retry window and a retry button, never as a permanent failure.
+   *   * anything else -- fall back to the matched cuisine's generic catalog
+   *     dishes if we have them (offline fallback only, and labelled as such),
+   *     and only show a hard error when there is nothing at all to swipe.
+   */
+  const loadMenu = useCallback(
+    async (cuisineName: string, fallbackDishes: Dish[]) => {
+      setMenuState("loading");
+      setMenuError(null);
+      setMenuRetryAfter(0);
+      try {
+        const { menu, source } = await fetchRestaurantMenu(restaurantName, cuisineName);
+        setMenuDishes(
+          menu.map((dish) => ({
+            id: dishIdFor(dish.name),
+            name: dish.name,
+            description: dish.description || undefined,
+            isTopPick: dish.isTopPick,
+          }))
+        );
+        setMenuSource(source);
+        setMenuState("ready");
+      } catch (err) {
+        console.error("Menu fetch failed:", err);
+        if (err instanceof MenuRateLimitedError) {
+          // Don't silently substitute the catalog here: a rate limit is
+          // temporary and retrying gets the real menu, so say so.
+          setMenuRetryAfter(err.retryAfterSeconds);
+          setMenuError(
+            `Too many menu requests at once (that happens when the whole room opens ${restaurantName} together). Try again in ${err.retryAfterSeconds}s.`
+          );
+          setMenuState("error");
+          return;
+        }
+        if (fallbackDishes.length > 0) {
+          setMenuDishes(fallbackDishes);
+          setMenuSource("catalog");
+          setMenuState("ready");
+          return;
+        }
+        setMenuError(errorMessage(err, "We couldn't load a menu for this restaurant."));
+        setMenuState("error");
+      }
+    },
+    [restaurantName]
+  );
+
   // -------------------------------------------------------------------------
   // Initial load
   // -------------------------------------------------------------------------
@@ -179,7 +273,12 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
     (async () => {
       const user = await getCurrentUser();
       if (!user) {
-        window.location.href = "/rooms";
+        // The reason used to be lost: a toast created microseconds before a
+        // full page navigation dies with the document.
+        redirectWithNotice("/login", "sign-in-required", {
+          room: roomCode,
+          redirect: currentPathForRedirect(),
+        });
         return;
       }
       if (cancelled) return;
@@ -187,16 +286,13 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
 
       const roomState = await fetchRoomByCode(roomCode);
       if (!roomState) {
-        toast({
-          variant: "destructive",
-          title: "Room not found",
-          description: `Room "${roomCode}" no longer exists.`,
-        });
-        window.location.href = "/rooms";
+        redirectWithNotice("/rooms", "not-a-member", { room: roomCode });
         return;
       }
       if (cancelled) return;
       setRoom(roomState);
+      // Keep the room resolvable while the group is still ordering together.
+      saveActiveRoom({ id: roomState.id, code: roomState.code });
 
       const [cuisines, roomParticipants, dishRows, matches] = await Promise.all([
         fetchCuisines(),
@@ -206,12 +302,23 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
       ]);
       if (cancelled) return;
 
+      // An AI-suggested cuisine has an `ai-<slug>` id that matches no catalog
+      // row, which is exactly the case that used to produce an empty deck.
+      // De-slug it into a readable cuisine name for the menu prompt instead.
       const cuisine = cuisines.find((c) => c.id === cuisineId);
-      const dishes: Dish[] = (cuisine?.dishes ?? []).map((name, index) => ({
+      const cuisineName =
+        cuisine?.name ??
+        cuisineId
+          .replace(/^ai-/, "")
+          .replace(/-/g, " ")
+          .replace(/\b\w/g, (ch) => ch.toUpperCase());
+      const fallbackDishes: Dish[] = (cuisine?.dishes ?? []).map((name, index) => ({
         id: dishIdFor(name),
         name,
         isTopPick: index === 0,
       }));
+      setCuisineLabel(cuisineName);
+      setCatalogDishes(fallbackDishes);
 
       const mine = dishRows.filter((r) => r.userId === user.id);
       const map = new Map<string, Map<string, "left" | "right">>();
@@ -224,11 +331,15 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
 
       setParticipants(roomParticipants);
       setDishVotes(map);
-      setAllDishes(dishes);
       setMySwipedNames(new Set(mine.map((r) => r.dishName)));
       setMyLikedNames(new Set(mine.filter((r) => r.direction === "right").map((r) => r.dishName)));
       setAgreed(matches);
       setLoading(false);
+
+      // The room/swipe state is usable now; the menu is a separate, slower
+      // network call, so it gets its own state and its own error handling
+      // rather than blocking the whole page behind it.
+      void loadMenu(cuisineName, fallbackDishes);
     })();
     return () => {
       cancelled = true;
@@ -243,6 +354,15 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
     if (!room) return;
     const unsubscribe = subscribeToRoom(room.id, {
       onSessionChange: (updated) => setRoom(updated),
+      onSessionDeleted: () => {
+        // Previously undeliverable: the swipe_sessions handler guarded on
+        // `"id" in payload.new`, which is false for a DELETE. So the host
+        // closing the room went unnoticed here while the dish_matches cascade
+        // silently emptied the "agreed so far" list -- the group watched their
+        // order vanish with no explanation. Clear the cache for THIS room only.
+        clearActiveRoomIfMatches(room.id);
+        setRoomClosed(true);
+      },
       onParticipantsChange: () => refreshParticipants(room.id),
       onDishSwipeChange: () => refreshDishSwipes(room.id),
       onDishMatch: () => refreshAgreed(room.id),
@@ -267,7 +387,11 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
       }
     } catch (err) {
       console.error("Dish swipe error:", err);
-      toast({ variant: "destructive", title: "Swipe Error", description: "Failed to record your vote." });
+      toast({
+        variant: "destructive",
+        title: "Swipe Error",
+        description: errorMessage(err, "Failed to record your vote."),
+      });
       return;
     }
 
@@ -290,6 +414,42 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
     return (
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // The host closed the room while we were ordering.
+  // ---------------------------------------------------------------------------
+  if (roomClosed) {
+    return (
+      <div className="w-full max-w-sm text-center p-8 bg-card rounded-2xl shadow-lg">
+        <div className="mx-auto bg-destructive/15 p-3 rounded-full mb-3 w-fit">
+          <DoorClosed className="h-8 w-8 text-destructive" />
+        </div>
+        <h3 className="text-xl font-headline mb-2">This room was closed</h3>
+        <p className="text-muted-foreground font-body text-sm mb-6">
+          The host closed room {roomCode} while you were picking dishes, so the session has ended. The
+          agreed list went with it -- start a new room, or join another one.
+        </p>
+        <Button asChild className="w-full h-11 rounded-2xl">
+          <a href="/rooms">Back to rooms</a>
+        </Button>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Menu still loading. Note this is NOT a dead end and NOT an empty deck --
+  // it's an explicit "we're fetching the real menu for this restaurant".
+  // ---------------------------------------------------------------------------
+  if (menuState === "loading") {
+    return (
+      <div className="w-full max-w-sm flex flex-col items-center gap-4 p-8 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="font-body text-sm text-muted-foreground">
+          Building the menu for <span className="font-semibold text-foreground">{restaurantName}</span>...
+        </p>
       </div>
     );
   }
@@ -394,6 +554,46 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
   );
 
   // ---------------------------------------------------------------------------
+  // Menu unavailable and no catalog dishes to fall back on. Every branch here
+  // offers a real action -- this used to be the permanent "That's the whole
+  // menu / nobody's reached unanimity here yet" dead end.
+  // ---------------------------------------------------------------------------
+  if (menuState === "error") {
+    return (
+      <div className="w-full max-w-sm flex flex-col items-center">
+        <div className="w-full rounded-2xl border bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
+          <div className="mx-auto bg-destructive/15 p-3 rounded-full mb-3 w-fit">
+            <WifiOff className="h-8 w-8 text-destructive" />
+          </div>
+          <h3 className="text-xl font-headline">No menu for {restaurantName}</h3>
+          <p className="text-muted-foreground mt-2 font-body text-sm">
+            {menuError ?? "We couldn't load a menu for this restaurant."}
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Button
+              className="w-full rounded-2xl h-11"
+              onClick={() => void loadMenu(cuisineLabel, catalogDishes)}
+            >
+              <RefreshCw className="h-4 w-4" />
+              {menuRetryAfter > 0 ? `Try again (wait ~${menuRetryAfter}s)` : "Try again"}
+            </Button>
+            <Button asChild variant="outline" className="w-full rounded-2xl h-11">
+              <a href={backToRestaurants}>
+                <Store className="h-4 w-4" />
+                Pick a different restaurant
+              </a>
+            </Button>
+            <Button asChild variant="outline" className="w-full rounded-2xl h-11">
+              <a href="/rooms">Back to rooms</a>
+            </Button>
+          </div>
+        </div>
+        {agreedPanel}
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Deck exhausted. Not a dead end in either case: the agreed panel always
   // carries "Done", plus explicit ways back out.
   // ---------------------------------------------------------------------------
@@ -453,6 +653,26 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
       {participants.length > 0 && (
         <p className="text-xs text-muted-foreground mt-4 font-body">
           {votesOnCurrent} of {participants.length} diners have voted on this dish
+        </p>
+      )}
+
+      {/*
+        Honest about where the list came from. "catalog" means the menu
+        endpoint was unreachable and these are the cuisine's generic dishes,
+        not this restaurant's own -- worth saying, rather than quietly
+        presenting stand-ins as the real menu.
+      */}
+      {menuSource === "catalog" && (
+        <p className="mt-2 font-body text-[11px] text-muted-foreground text-center">
+          Couldn't reach the menu service, so these are generic {cuisineLabel} dishes rather than{" "}
+          {restaurantName}'s own.{" "}
+          <button
+            type="button"
+            className="underline hover:text-foreground"
+            onClick={() => void loadMenu(cuisineLabel, catalogDishes)}
+          >
+            Retry
+          </button>
         </p>
       )}
 

@@ -10,7 +10,7 @@
 // to it is left for them to do, not assumed here. The section below is a
 // clearly-marked stub.
 import React, { useEffect, useState } from "react";
-import { Heart, Sparkles, Utensils } from "lucide-react";
+import { Heart, Sparkles, Utensils, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fetchRoomByCode, type RoomState } from "@/lib/rooms";
@@ -33,24 +33,59 @@ function titleCase(id: string): string {
   return id.charAt(0).toUpperCase() + id.slice(1);
 }
 
+/**
+ * A cuisine id this page is willing to render.
+ *
+ * The slug arrives from the URL, so it is untrusted text. Without this check
+ * `/match/not-a-real-cuisine-🍕?room=X` rendered "You all want Not a real
+ * cuisine 🍕!" -- the page was a machine for putting arbitrary words in the
+ * app's mouth, and the words it chose were a claim about what the group had
+ * decided. Catalog ids and the AI fallback's `ai-<slug>` ids are the only two
+ * shapes the app ever produces.
+ */
+function isPlausibleCuisineId(id: string): boolean {
+  return /^(ai-)?[a-z0-9]+(-[a-z0-9]+)*$/.test(id) && id.length <= 64;
+}
+
 export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
   const [room, setRoom] = useState<RoomState | null>(null);
-  const [roomState, setRoomState] = useState<"loading" | "ok" | "missing">("loading");
+  const [roomState, setRoomState] = useState<"loading" | "ok" | "missing" | "no-match" | "bad-slug">(
+    "loading"
+  );
   const [restaurantNameInput, setRestaurantNameInput] = useState("");
   const emoji = CUISINE_EMOJI[cuisineId] ?? "🍽️";
   const cuisineName = titleCase(cuisineId.replace(/^ai-/, "").replace(/-/g, " "));
 
   useEffect(() => {
     let cancelled = false;
+    if (!isPlausibleCuisineId(cuisineId)) {
+      setRoomState("bad-slug");
+      return;
+    }
     fetchRoomByCode(roomCode).then((r) => {
       if (cancelled) return;
       setRoom(r);
-      setRoomState(r ? "ok" : "missing");
+      if (!r) {
+        setRoomState("missing");
+        return;
+      }
+      // THE CHECK THIS PAGE WAS MISSING. It used to render the full reveal
+      // for any room it could read, so a shared link to a waiting, zero-swipe
+      // room announced a decision that had never happened -- and a link to
+      // /match/japanese?room=X for a room that actually matched on Italian
+      // announced the wrong one. A match is a server verdict (the
+      // check_swipe_match() trigger sets status + matched_cuisine_id); this
+      // page's job is to REPORT that verdict, never to assert one.
+      if (r.status !== "matched" || r.matchedCuisineId !== cuisineId) {
+        setRoomState("no-match");
+        return;
+      }
+      setRoomState("ok");
     });
     return () => {
       cancelled = true;
     };
-  }, [roomCode]);
+  }, [roomCode, cuisineId]);
 
   const handleContinueToDishes = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +98,15 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
   // a participant of it (fetchRoomByCode() is RLS-guarded and returns null
   // for both). Continuing from there just bounced off the dish page's own
   // redirect with no explanation. Say so, and offer a way out.
+  if (roomState === "loading") {
+    return (
+      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="font-body text-sm text-muted-foreground">Checking what your group decided...</p>
+      </div>
+    );
+  }
+
   if (roomState === "missing") {
     return (
       <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
@@ -74,6 +118,56 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
         <Button asChild className="rounded-2xl h-11 px-8">
           <a href="/rooms">Back to rooms</a>
         </Button>
+      </div>
+    );
+  }
+
+  // An unrecognised slug is never rendered as a decision. Saying "that isn't
+  // a cuisine we know" is the honest answer; echoing it back as "You all want
+  // <arbitrary text>!" is not.
+  if (roomState === "bad-slug") {
+    return (
+      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-2xl font-headline">That's not a cuisine we recognise</h1>
+        <p className="font-body text-muted-foreground max-w-md">
+          This link points at something Food Swipe never matched on. Head back to your room to see what
+          your group actually decided.
+        </p>
+        <Button asChild className="rounded-2xl h-11 px-8">
+          <a href={`/swipe?room=${roomCode}`}>Back to the room</a>
+        </Button>
+      </div>
+    );
+  }
+
+  // The room exists and we can read it, but it has NOT agreed on this cuisine.
+  // Either nobody has matched yet, or they matched on something else -- both
+  // get an honest answer plus a way to the real state, never a fabricated
+  // celebration.
+  if (roomState === "no-match") {
+    const matchedElsewhere = room?.status === "matched" && room.matchedCuisineId;
+    return (
+      <div className="container mx-auto flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-2xl font-headline">
+          {matchedElsewhere ? "Your group picked something else" : "No decision yet"}
+        </h1>
+        <p className="font-body text-muted-foreground max-w-md">
+          {matchedElsewhere
+            ? `Room ${roomCode} agreed on ${titleCase(
+                String(room?.matchedCuisineId).replace(/^ai-/, "").replace(/-/g, " ")
+              )}, not ${cuisineName}. This link is out of date.`
+            : `Room ${roomCode} hasn't agreed on ${cuisineName} -- everyone still has to swipe right on the same cuisine before it's decided.`}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-2">
+          {matchedElsewhere && (
+            <Button asChild className="rounded-2xl h-11 px-8">
+              <a href={`/match/${room?.matchedCuisineId}?room=${roomCode}`}>See what they picked</a>
+            </Button>
+          )}
+          <Button asChild variant={matchedElsewhere ? "outline" : "default"} className="rounded-2xl h-11 px-8">
+            <a href={`/swipe?room=${roomCode}`}>Back to swiping</a>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -138,7 +232,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
           restaurant name, so a user with no restaurant in mind was stuck.
         */}
         <Button asChild variant="link" className="text-muted-foreground">
-          <a href="/rooms">Back to the room</a>
+          <a href={`/swipe?room=${roomCode}`}>Back to the room</a>
         </Button>
       </form>
     </div>

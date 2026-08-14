@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser, ensureGuestSession } from "@/lib/guest-auth";
 import { joinRoomByCode, saveActiveRoom } from "@/lib/rooms";
 import { Loader2, UtensilsCrossed } from "lucide-react";
+// Aliased: this component already has an `errorMessage` state variable.
+import { errorMessage as describeError } from "@/lib/errors";
 
 type Stage = "checking" | "need-name" | "joining" | "error";
 
@@ -49,7 +51,11 @@ export function JoinByLink() {
       window.location.href = "/rooms";
     } catch (err) {
       console.error("Failed to join room via link:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Could not join this room.");
+      // PostgrestError is a plain object, so `instanceof Error` was false
+      // exactly when the real message was most useful -- a bad code produced
+      // the perfectly good `Room "QQQQ" not found.` and this replaced it with
+      // a generic string. See src/lib/errors.ts.
+      setErrorMessage(describeError(err, "Could not join this room."));
       setStage("error");
     }
   }
@@ -88,7 +94,7 @@ export function JoinByLink() {
       await completeJoin();
     } catch (err) {
       console.error("Guest sign-in failed:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Could not create a guest session.");
+      setErrorMessage(describeError(err, "Could not create a guest session."));
       setStage("error");
     }
   }

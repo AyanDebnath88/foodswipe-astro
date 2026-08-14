@@ -12,8 +12,15 @@
 // no way out of the room, and no way to start over short of editing the URL.
 import { useEffect, useState } from "react";
 import { DoorOpen, Loader2 } from "lucide-react";
-import { clearActiveRoom, fetchRoomByCode, leaveRoom, loadActiveRoom } from "@/lib/rooms";
+import {
+  fetchRoomById,
+  fetchRoomByCode,
+  isRoomParticipant,
+  leaveRoom,
+  loadActiveRoom,
+} from "@/lib/rooms";
 import { getCurrentUser } from "@/lib/guest-auth";
+import { errorMessage } from "@/lib/errors";
 
 interface RoomControlsProps {
   /**
@@ -25,7 +32,9 @@ interface RoomControlsProps {
 }
 
 export function RoomControls({ roomCode = null }: RoomControlsProps) {
-  const [room, setRoom] = useState<{ id: string | null; code: string } | null>(null);
+  // `id` is NON-nullable now. A control that can't name the room it acts on
+  // has no business being on screen -- see handleLeave().
+  const [room, setRoom] = useState<{ id: string; code: string } | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
@@ -33,25 +42,42 @@ export function RoomControls({ roomCode = null }: RoomControlsProps) {
     (async () => {
       const stored = loadActiveRoom();
       const wanted = roomCode?.trim().toUpperCase() ?? null;
-
-      if (!wanted) {
-        if (!cancelled) setRoom(stored);
-        return;
-      }
-      // Fast path: the page's room is the cached one, so we already have the
-      // id and can skip a round trip.
-      if (stored?.code === wanted) {
-        if (!cancelled) setRoom(stored);
-        return;
-      }
-      // Otherwise resolve the id, which we need for the server-side leave.
-      // fetchRoomByCode() is RLS-guarded and returns null for a room this
-      // user isn't a participant of -- in that case we still show the code
-      // (the page is about that room) but "leave" degrades to a local reset,
-      // which is correct: there is no participant row to delete.
-      const resolved = await fetchRoomByCode(wanted);
+      const user = await getCurrentUser();
       if (cancelled) return;
-      setRoom({ id: resolved?.id ?? null, code: wanted });
+      if (!user) {
+        setRoom(null);
+        return;
+      }
+
+      // Resolve the room this PAGE is about, falling back to the cached one
+      // only when the page doesn't name a room at all.
+      let resolved: { id: string; code: string } | null = null;
+      if (wanted) {
+        const byCode = await fetchRoomByCode(wanted);
+        resolved = byCode ? { id: byCode.id, code: byCode.code } : null;
+      } else if (stored) {
+        // Re-verify the cache against the database -- it's a cache, never the
+        // source of truth, and it can point at a room that has since been
+        // deleted or that this user has left.
+        const byId = await fetchRoomById(stored.id);
+        resolved = byId ? { id: byId.id, code: byId.code } : null;
+      }
+      if (cancelled) return;
+
+      // The control renders ONLY for a room this user is genuinely a member
+      // of. This is the fix for a real data-loss bug: the old version showed
+      // "Leave room" for any `?room=CODE` in the URL and, when it couldn't
+      // resolve an id, fell back to clearActiveRoom() -- which wipes the one
+      // global `foodswipe_active_room` key regardless of which room it refers
+      // to. With room ZJHM active, visiting /match/italian?room=ZZZZ and
+      // pressing Leave destroyed the ZJHM record while leaving the user a
+      // participant of ZJHM server-side, still counted in its unanimity
+      // denominator, with no "my rooms" list to recover from.
+      if (!resolved || !(await isRoomParticipant(resolved.id, user.id))) {
+        if (!cancelled) setRoom(null);
+        return;
+      }
+      if (!cancelled) setRoom(resolved);
     })();
     return () => {
       cancelled = true;
@@ -59,30 +85,31 @@ export function RoomControls({ roomCode = null }: RoomControlsProps) {
   }, [roomCode]);
 
   async function handleLeave() {
-    if (leaving) return;
+    if (leaving || !room) return;
     const confirmed = window.confirm(
-      "Leave this room and start over? You'll stop counting toward the group's votes, and the others can keep going without you."
+      `Leave room ${room.code} and start over? You'll stop counting toward the group's votes, and the others can keep going without you.`
     );
     if (!confirmed) return;
 
     setLeaving(true);
     try {
       const user = await getCurrentUser();
-      if (room?.id && user) {
-        // Real server-side leave -- deletes the room_participants row so the
-        // match trigger's unanimity denominator actually shrinks. A local
-        // clear alone would leave a ghost participant who has to keep voting
-        // for the room to ever match again.
-        await leaveRoom(room.id, user.id);
-      } else {
-        clearActiveRoom();
-      }
+      if (!user) throw new Error("You're signed out.");
+      // The ONLY thing this button may ever do: a real server-side leave of
+      // the room it is displaying. leaveRoom() deletes this user's
+      // room_participants row (so the unanimity denominator actually shrinks)
+      // and then clears the local cache only if it points at THIS room
+      // (clearActiveRoomIfMatches). There is deliberately no "else" branch --
+      // if we can't identify the room, the control isn't rendered at all.
+      await leaveRoom(room.id, user.id);
     } catch (err) {
       console.error("Leave room failed:", err);
       // Deliberately do NOT clear the local cache here: the user is still a
       // participant server-side, so pretending otherwise would hide the room
       // from them while they still block the group's matches.
-      window.alert("Could not leave the room -- check your connection and try again.");
+      window.alert(
+        errorMessage(err, "Could not leave the room -- check your connection and try again.")
+      );
       setLeaving(false);
       return;
     }

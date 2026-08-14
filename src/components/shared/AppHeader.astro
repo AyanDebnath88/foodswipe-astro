@@ -11,12 +11,18 @@
 // NOT used on the landing page (src/pages/index.astro), which has its own
 // signed-in/signed-out nav.
 //
-// Mostly static markup on purpose: the logo mark is the same inline SVG as
-// index.astro's (kept inline rather than importing shared/logo.tsx, which is
-// a React component and would mean hydrating an island just to draw a link),
-// and Rooms / Log out are plain <a>. Only the room-code chip and the
-// "Leave room" action need client state, so only those are an island.
-import { RoomControls } from "./room-controls";
+// The logo mark stays static markup on purpose -- it's the same inline SVG as
+// index.astro's, kept inline rather than importing shared/logo.tsx (a React
+// component, which would mean hydrating an island just to draw a link).
+//
+// The NAV, however, is now an island (HeaderNav). It used to be static <a>
+// tags, which meant "Log out" and the room controls were shown to signed-out
+// visitors too -- most glaringly on the guest-invite page, which promises "no
+// account needed" directly under an offer to log out. It can't be a
+// server-side check either, because this header is used by statically
+// prerendered pages where that would run at build time; see header-nav.tsx's
+// header comment for the full reasoning.
+import { HeaderNav } from "./header-nav";
 
 interface Props {
   /** Room code from the page's ?room=CODE, when it has one. */
@@ -40,19 +46,7 @@ const { roomCode = null } = Astro.props;
     </a>
 
     <nav class="flex items-center gap-1 sm:gap-2">
-      <a
-        href="/rooms"
-        class="inline-flex h-9 items-center justify-center rounded-md px-3 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-      >
-        Rooms
-      </a>
-      <RoomControls roomCode={roomCode} client:load />
-      <a
-        href="/logout"
-        class="inline-flex h-9 items-center justify-center rounded-md px-3 font-body text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-      >
-        Log out
-      </a>
+      <HeaderNav roomCode={roomCode} client:load />
     </nav>
   </div>
 </header>

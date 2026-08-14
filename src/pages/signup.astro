@@ -8,10 +8,41 @@
 // utils + logo were ported), so the card chrome is reproduced here with the
 // same Tailwind classes Card/CardHeader/CardTitle/CardDescription/CardContent
 // would generate, rather than pulling in an unlisted component.
+// Signed-in guard. /login has had one since Task 6; this page did not, so an
+// already-authenticated user could land on "Create an Account" and be invited
+// to sign up over the top of a live session -- self-contradictory, and the
+// only page pair in the app that disagreed with itself about auth state.
+// Same shape as login.astro, including the ?redirect= passthrough and the
+// defensive try/catch around a Supabase call that can fail on the network
+// rather than cleanly returning { user: null }.
+export const prerender = false;
+
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { Logo } from "../components/shared/logo";
 import { SignupForm } from "../components/auth/signup-form";
 import { Toaster } from "../components/ui/toaster";
+import { createSupabaseServerClient } from "../lib/supabase/server";
+
+let isAuthenticated = false;
+try {
+  const supabase = createSupabaseServerClient(Astro.request, Astro.cookies);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  isAuthenticated = user !== null;
+} catch (error) {
+  console.error("Failed to check auth state on /signup:", error);
+}
+
+const requested = Astro.url.searchParams.get("redirect");
+const safeRedirect =
+  requested && requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\")
+    ? requested
+    : null;
+
+if (isAuthenticated) {
+  return Astro.redirect(safeRedirect ?? "/rooms");
+}
 ---
 
 <BaseLayout title="Sign Up · Food Swipe" description="Create your Food Swipe account.">

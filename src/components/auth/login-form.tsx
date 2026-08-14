@@ -7,12 +7,13 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { consumeNotice, readRedirectParam } from "@/lib/notices";
 import { Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
@@ -21,8 +22,35 @@ const formSchema = z.object({
   password: z.string().min(1, { message: "Password is required." }),
 });
 
+// Where to go after a successful auth.
+//
+// Hardcoding "/rooms" broke invited friends: /swipe?room=ABCD while signed out
+// redirected to /rooms, which redirected to /login, which then sent them to
+// /rooms after logging in -- the room code was dropped on the floor and there
+// was no way to follow a swipe link. readRedirectParam() returns the intended
+// destination when one was carried through, and it only ever honours a
+// same-origin path (see safeRedirectPath() -- otherwise ?redirect= would be an
+// open redirect handing a freshly-authenticated user to someone else's site).
+function destinationAfterAuth(): string {
+  return readRedirectParam() ?? "/rooms";
+}
+
 export function LoginForm() {
   const { toast } = useToast();
+
+  // Say WHY the user is looking at a login form. A "sign in to continue"
+  // toast fired immediately before window.location.href = "/login" died with
+  // the document that created it, so being bounced here was silent. The
+  // reason now rides in as a ?notice= code and is shown on arrival.
+  useEffect(() => {
+    const notice = consumeNotice();
+    if (!notice) return;
+    toast({
+      variant: notice.variant === "destructive" ? "destructive" : "default",
+      title: notice.title,
+      description: notice.description,
+    });
+  }, [toast]);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -56,7 +84,7 @@ export function LoginForm() {
         title: "Welcome back!",
         description: `Logged in as ${data.user?.user_metadata?.display_name ?? data.user?.email ?? "you"}.`,
       });
-      window.location.href = "/rooms";
+      window.location.href = destinationAfterAuth();
     } catch (error) {
       console.error("Login error:", error);
       toast({
@@ -76,7 +104,7 @@ export function LoginForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(destinationAfterAuth())}`,
         },
       });
 

@@ -10,14 +10,16 @@
 // short flavor-text copy lives here as UI-only decoration, keyed by
 // cuisine id, rather than being stored as data.
 import { createSupabaseBrowserClient } from "./supabase/client";
-import { filterCuisinesByDietary } from "./dietary";
 
-export interface Cuisine {
-  id: string;
-  name: string;
-  dishes: string[];
-  dietaryTags: string[];
-}
+// The Cuisine shape, syntheticCuisineFromName() and the dietary safety gate
+// all live in ./suggestion-safety, which has no browser dependencies so the
+// test suite can import and exercise the real gate (see that file's header).
+// They are re-exported here so every existing caller keeps importing them from
+// "@/lib/cuisines" and there is still exactly one definition of each.
+export type { Cuisine, SuggestionResolution } from "./suggestion-safety";
+export { syntheticCuisineFromName, resolveSuggestedCuisines } from "./suggestion-safety";
+
+import type { Cuisine } from "./suggestion-safety";
 
 export const CUISINE_DESCRIPTIONS: Record<string, string> = {
   italian: "Comforting and diverse, from rich pastas and pizzas to fresh Mediterranean flavors.",
@@ -67,106 +69,4 @@ export async function fetchCuisines(): Promise<Cuisine[]> {
     dishes: (row.dishes as string[] | null) ?? [],
     dietaryTags: (row.dietary_tags as string[] | null) ?? [],
   }));
-}
-
-/**
- * Builds a synthetic Cuisine for a name returned by the AI fallback
- * (POST /api/suggest-cuisines, see src/lib/ai-suggestions.ts) that isn't
- * one of the 9 seeded rows.
- *
- * DANGER: the result has `dietaryTags: []`, which means it can never satisfy
- * filterCuisinesByDietary() for a non-empty restriction set -- and for a long
- * time that was worked around by simply not filtering these cards at all.
- * That defeated product guarantee #2 outright (see the build log): a room with
- * a halal + gluten-free member correctly narrowed its deck to Indian only,
- * then "Get AI Suggestions" appended an unvetted "Chinese" card and the room
- * matched on it. The stalled-room case is exactly when people press that
- * button, so the guarantee failed precisely when it mattered.
- *
- * Callers MUST NOT deal a synthetic card to a room that has any dietary
- * restrictions. Use resolveSuggestedCuisines() below rather than calling this
- * directly -- it enforces that rule in one place.
- */
-export function syntheticCuisineFromName(name: string): Cuisine {
-  return {
-    id: `ai-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`,
-    name,
-    dishes: [],
-    dietaryTags: [],
-  };
-}
-
-export interface SuggestionResolution {
-  /** Cards that are safe to deal into the deck. */
-  accepted: Cuisine[];
-  /** Names dropped because the room has restrictions and they aren't vetted. */
-  rejectedUnvetted: string[];
-  /** Catalog cuisines dropped because they fail a participant's restriction. */
-  rejectedDietary: string[];
-}
-
-/**
- * The single gate between "the AI said these names" and "these cards enter the
- * deck". Every AI suggestion path must go through it.
- *
- * The rule, stated plainly:
- *   * a suggestion that resolves to a catalog row must still pass the room's
- *     dietary filter, exactly like a normal deck card;
- *   * a suggestion that resolves to NOTHING has no dietary metadata, so in a
- *     room with any restrictions it is unvettable and is dropped. There is no
- *     honest way to show it: `dietaryTags: []` isn't "unknown, probably fine",
- *     it's "we cannot promise this is halal/gluten-free/nut-free", and the
- *     whole point of the feature is that the promise holds.
- *   * in a room with NO restrictions there is nothing to violate, so a novel
- *     name is still dealt as a synthetic card. That keeps the stalled-room
- *     rescue working for the common case (and keeps the `ai-<slug>` cuisine_id
- *     path alive, which the security suite asserts must stay supported).
- *
- * Rejections are returned rather than silently swallowed so the UI can be
- * honest about *why* nothing new showed up.
- */
-export function resolveSuggestedCuisines(
-  names: string[],
-  catalog: Cuisine[],
-  requiredRestrictions: string[],
-  alreadyKnownIds: Set<string> = new Set()
-): SuggestionResolution {
-  const accepted: Cuisine[] = [];
-  const rejectedUnvetted: string[] = [];
-  const rejectedDietary: string[] = [];
-  const seenIds = new Set(alreadyKnownIds);
-  const restricted = requiredRestrictions.length > 0;
-
-  for (const rawName of names) {
-    const name = rawName.trim();
-    if (!name) continue;
-    const lower = name.toLowerCase();
-
-    const catalogMatch = catalog.find(
-      (c) => c.name.toLowerCase() === lower || c.id.toLowerCase() === lower
-    );
-
-    if (catalogMatch) {
-      if (filterCuisinesByDietary([catalogMatch], requiredRestrictions).length === 0) {
-        rejectedDietary.push(catalogMatch.name);
-        continue;
-      }
-      if (seenIds.has(catalogMatch.id)) continue;
-      seenIds.add(catalogMatch.id);
-      accepted.push(catalogMatch);
-      continue;
-    }
-
-    if (restricted) {
-      rejectedUnvetted.push(name);
-      continue;
-    }
-
-    const synthetic = syntheticCuisineFromName(name);
-    if (!synthetic.id || synthetic.id === "ai-" || seenIds.has(synthetic.id)) continue;
-    seenIds.add(synthetic.id);
-    accepted.push(synthetic);
-  }
-
-  return { accepted, rejectedUnvetted, rejectedDietary };
 }

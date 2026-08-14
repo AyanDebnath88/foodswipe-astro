@@ -18,5 +18,15 @@ if (code) {
   await supabase.auth.exchangeCodeForSession(code);
 }
 
-return Astro.redirect("/");
+// Carry the caller's intended destination through the OAuth round trip, so
+// an invited friend who followed /swipe?room=ABCD and signed in with Google
+// lands back on that room rather than on the landing page. Same-origin,
+// path-absolute values only -- see src/lib/notices.ts's safeRedirectPath().
+const requested = Astro.url.searchParams.get("redirect");
+const safeRedirect =
+  requested && requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\")
+    ? requested
+    : null;
+
+return Astro.redirect(safeRedirect ?? "/rooms");
 ---
