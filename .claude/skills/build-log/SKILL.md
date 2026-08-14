@@ -23,8 +23,8 @@ Astro (React islands) + Tailwind v4 + Supabase (Postgres/Auth/Realtime) + Vercel
 | 1 — Auth & core UI | ✅ done | Real Supabase Auth (email/pass + Google OAuth path), guest-auth groundwork, landing/login/signup pages |
 | 2 — Swipe & matching core | ✅ done | Rooms (create/join/guest-join), Realtime sync, dietary filter, server-side match detection, AI match fallback, dish-level room sync, shareable links — see "Phase 2 detail" below |
 | 3 — Restaurant discovery & AI | ✅ done | `/api/suggest-cuisines`, `/api/find-restaurants`, `/api/restaurant-menu`, `/api/delivery-links` — see "Phase 3 detail" below. Built and verified independently of Phase 2 (no dependency between them); Phase 2 was still in progress when this landed. |
-| 4 — Retention loop | ⏳ code+tests done, **migration `0014` pending user** | Post-meal feedback, solo history + favourites, async rooms. UI/lib/tests are landed; the two new tables are waiting on the SQL editor. See "Phase 4 detail" below |
-| 5 — Monetization hooks | ⏳ code+tests done, **migration `0015` pending user** | Affiliate-ready delivery links + click tracking, and sponsored-placement schema/API groundwork. **No subscriptions, payments, Stripe or ads — deliberately out of scope.** See "Phase 5 detail" below |
+| 4 — Retention loop | ⏳ code+tests done, integrated, **migration `0014` pending user** | Post-meal feedback, solo history + favourites, async rooms. UI/lib/tests landed AND the feedback prompt is now mounted in the dish order summary (integration pass, see below). The two new tables are waiting on the SQL editor. See "Phase 4 detail" below |
+| 5 — Monetization hooks | ⏳ code+tests done, integrated, **migration `0015` pending user** | Affiliate-ready delivery links + click tracking, and sponsored-placement schema/API groundwork. Delivery links are now mounted in the dish order summary and sponsored results are merged into match-reveal (integration pass, see below). **No subscriptions, payments, Stripe or ads — deliberately out of scope.** See "Phase 5 detail" below |
 | 6 — Deploy & polish | ⬜ not started | Vercel, analytics, Lighthouse pass |
 
 **Post-Phase-3 hardening passes** (not numbered phases — corrective work driven by running the app for real):
@@ -36,6 +36,7 @@ Astro (React islands) + Tailwind v4 + Supabase (Postgres/Auth/Realtime) + Vercel
 | Multi-dish model | ✅ done | `0012_dish_matches.sql` **is now applied** — the full multi-dish section of the e2e suite passes against the live project (129/129) |
 | Security / abuse-resistance | ⏳ code+tests done, **migration `0013` pending user** | Adversarial pass over the RPCs, RLS, constraints, races and the public API routes. API-route fixes are live and verified; the schema half is written and waiting on the SQL editor. See "Security & abuse-resistance pass" below |
 | QA blocker fixes | ✅ done | Driven by running the app as two real users. Dietary-safe AI suggestions (the P0 — a halal room could be dealt an unvetted cuisine), the dish-deck rewire onto `/api/restaurant-menu`, and 9 smaller correctness/dead-end findings. New suite `scripts/test-dietary-safety.mjs` (39 assertions). See "QA blocker fixes" below |
+| Phase 4/5 integration | ✅ done | Three agents (QA fixes, Phase 4, Phase 5) worked in parallel on disjoint files and each left an explicit integration note for what they couldn't wire themselves. This pass did that wiring: `FeedbackPrompt` + `DeliveryOptions` mounted in `dish-swipe-area.tsx`'s order summary (only once `agreed.length > 0`); match-reveal's Phase-2-era manual-entry-only stub replaced with real `/api/find-restaurants` + on-tap geolocation, with `/api/sponsored-restaurants` merged in via `mergeSponsoredFirst()` exactly per the Phase 5 integration note. Also found and fixed in passing: `find-restaurants.ts` was inventing customer ratings (`4.1 + Math.random() * 0.8`) and presenting them as real — same class of fabrication as the old app's invented delivery prices; ratings are now `null` and the UI omits the field rather than lie with it. See "Integration pass" below |
 
 ## Phase 2 detail — Swipe & matching core (done)
 
@@ -49,14 +50,14 @@ Built directly against `swipe_sessions`/`room_participants`/`swipes`/`dish_swipe
 - **Match fallback (Task 5)** — `src/lib/ai-suggestions.ts` calls `POST /api/suggest-cuisines` exactly to the agreed contract, swallowing any failure (network error, 404 if the route isn't deployed yet, etc.) into an empty array — never blocks the swipe UI. Auto-triggers once the deck empties with no match; **capped at 2 automatic refill rounds per room** (a documented, arbitrary-but-reasonable threshold — see `swipe-area.tsx`'s `MAX_AUTO_FALLBACK_ATTEMPTS`) so a room that rejects everything (including the AI's picks) doesn't hammer the endpoint forever. The manual "Stuck? Get AI suggestions" button has no cap. AI-suggested names that match an existing catalog cuisine are resolved to the real row (and still dietary-filtered); names that don't match anything become an unfiltered synthetic card (`syntheticCuisineFromName()` in `src/lib/cuisines.ts`) since there's no dietary metadata for a name the AI invented.
 - **Swipe deck UI (Task 6)** — `src/components/swipe/{swipe-area,cuisine-card}.tsx`, `src/pages/swipe.astro` (now always room-scoped; solo swiping without a room is out of scope for this phase, deferred to Phase 4 per the roadmap). Cuisine artwork is a gradient tile + emoji, not photography — `0002_seed_cuisines.sql` already deferred real images to Storage in a later phase, so no new image-hosting dependency was added here either.
 - **Dish-level room sync (Task 7 — the P0 fix)** — new `dish_swipes` table (`0007_dish_swipes.sql`), same RLS/upsert/trigger shape as `swipes` one level down (scoped to `restaurant_name` + `dish_name`, since a room can browse more than one candidate restaurant). `swipe_sessions` gained `matched_restaurant_name`/`matched_dish_name` columns and a `dish_matched` status value. `restaurant_name` is plain `text`, not a foreign key — there's no restaurants table in this rebuild yet (restaurant data is ephemeral/API-sourced from Phase 3), so a text scope key is the deliberately simple stand-in the task asked for. UI: `src/components/dishes/{dish-swipe-area,dish-card}.tsx`, `src/pages/match/[cuisine]/[restaurant].astro` — same Realtime-driven, server-decides-the-match pattern as the cuisine deck.
-- **Match reveal page (Task 8)** — `src/components/match/match-reveal.tsx`, `src/pages/match/[cuisine].astro`. Only the reveal moment is ported (heading, meal-time-of-day copy, "You all want X!"); the restaurant list section is a **stub placeholder** with a manual restaurant-name text input bridging into the Task 7 dish-swipe flow, so that flow is reachable/testable ahead of Phase 3's restaurant-discovery UI landing there. See "Stubbed / left for Phase 3" below.
+- **Match reveal page (Task 8)** — `src/components/match/match-reveal.tsx`, `src/pages/match/[cuisine].astro`. Reveal moment (heading, meal-time-of-day copy, "You all want X!") plus, since the integration pass, real restaurant discovery: geolocation requested on an explicit tap (not on mount — an unprompted permission dialog is the fastest route to a permanent denial), `POST /api/find-restaurants`, sponsored placements merged in via `mergeSponsoredFirst()`. Manual restaurant-name entry kept as a fallback for when geolocation is unavailable/denied or nothing nearby fits. See "Integration pass" below.
 
 **Bug caught during verification**: `src/pages/swipe.astro` and (originally) `src/pages/rooms/join.astro` read query-string params (`?room=`, `?code=`) to decide page behavior. Astro's default output is static/prerendered at *build* time, when there's no query string at all — a naive implementation would have baked in a permanent wrong result (e.g. `/swipe` always redirecting to `/rooms` regardless of what `?room=CODE` a real request carried). Fixed two ways: `swipe.astro` now has `export const prerender = false` (reads `Astro.url.searchParams` per-request, same pattern as `login.astro`); `rooms/join.astro` instead reads `?code=` client-side inside the `JoinByLink` island via `window.location.search`, which let it stay static (cheaper, and it needed the browser for session/localStorage access anyway). Worth checking for this same trap in any future page that both wants static output and reads the query string.
 
-**Stubbed / left for Phase 3 or later**:
-- Match reveal page's restaurant list — currently a placeholder + manual text-entry bridge (see Task 8 above). Needs wiring to `/api/find-restaurants` (which now exists) plus the reference app's geolocation UX.
-- Dish deck contents — currently the matched cuisine's generic 5-dish list from the `cuisines` catalog (`dishes text[]`), not a real per-restaurant menu. `/api/restaurant-menu` now exists but wiring it into `dish-swipe-area.tsx` was left out (no menu-endpoint HTTP contract was specified for this phase to build against, unlike `suggest-cuisines`). Swapping the dish source only touches `dish-swipe-area.tsx`'s data-fetch, not the schema/RLS/trigger.
-- Delivery-price/order/book-a-table integration from the reference app's `dish-swipe-area.tsx` was dropped entirely (not ported, not stubbed) — it depended on a delivery-price AI flow this rebuild doesn't have a contract for either.
+**Stubbed / left for later — historical, all resolved, kept for context**:
+- ~~Match reveal page's restaurant list — placeholder + manual text-entry bridge~~ — **fixed in the integration pass**, now real `/api/find-restaurants` + geolocation + sponsored merge. See "Integration pass" below.
+- ~~Dish deck contents — generic 5-dish catalog list, not a real per-restaurant menu~~ — **fixed by the QA blocker pass**, `dish-swipe-area.tsx` now fetches `/api/restaurant-menu`, catalog dishes demoted to an offline fallback.
+- Delivery-price/order/book-a-table integration from the reference app's `dish-swipe-area.tsx` was dropped entirely (not ported, not stubbed) — it depended on a delivery-price AI flow this rebuild doesn't have a contract for either. Superseded by Phase 5's real (non-fabricated) delivery links, now mounted in the same summary.
 - ~~"Leave room" only clears the local cache~~ — **fixed**, see "Navigation & app shell" below. `0009` added the DELETE policy and `src/lib/rooms.ts`'s `leaveRoom()` now really removes the `room_participants` row.
 - Solo swiping (no room) is not implemented in this phase's `/swipe` route — explicitly deferred to Phase 4's "solo mode" per the roadmap.
 
@@ -123,7 +124,7 @@ It is enforced **structurally**, not by anyone remembering it:
 - **`/api/delivery-links` response is now** `{ services: { serviceName, url, affiliate }[], region, affiliateDisclosure }` — additive, nothing removed. `affiliate` is per-link because a region is routinely a mix of signed-up and not-signed-up services.
 - **Disclosure is truthful in both directions.** `affiliateDisclosure` is true only when a link really was tagged, so with no programs configured the app shows no disclosure (claiming a commission we don't earn is its own small lie) and the moment one is configured the line appears with no code change. `rel="sponsored"` is likewise applied per-link, not to the whole list.
 - **Click tracking** — `src/components/delivery/track-click.ts` writes `monetization_events` through the ordinary RLS-guarded browser client. No API route, no third-party SDK, no pixel. It returns `void`, not a promise, so a caller **physically cannot await it** and serialise a navigation behind an analytics write; the anchor is a real `href`/`target` and works with the tracking write failing entirely. Privacy: no IP, no user agent, no device id, no coordinates — only the app's own `auth.uid()` (which the client can neither omit nor forge: column default plus RLS), and rows cascade away with the user.
-- **`src/components/delivery/delivery-options.tsx`** is the island. **Not mounted anywhere yet** — the match/dish pages belonged to another agent this phase. See the integration note below.
+- **`src/components/delivery/delivery-options.tsx`** is the island. **Mounted** in the dish order summary (`dish-swipe-area.tsx`) since the integration pass — see "Integration pass" below.
 
 ### 2. Sponsored placement — schema + API only, NOT wired into the match UI
 
@@ -142,32 +143,9 @@ Funnel = **matches reached → delivery links shown → link clicked**. "Matches
 
 The reference app's `find-delivery-prices.ts` returned **hardcoded fabricated prices presented as real**; Phase 3 deleted it. Phase 5 was the obvious door for that to come back through and it did not: no prices, no ratings, no invented commissions, no "X people ordered this" social proof anywhere. The suite asserts no `price`/`rating`/`eta`/`commission` field appears in any delivery response. Where a number isn't real, there is no number.
 
-### Integration note — wiring sponsored results into the match UI later (for whoever owns those components)
+### ~~Integration note~~ — done, see "Integration pass" below
 
-Do **not** change the match/swipe components to reach for sponsorship earlier than this. The only correct place is *after* both the match and the organic restaurant search have completed:
-
-```tsx
-// in the restaurant-results area of src/components/match/match-reveal.tsx,
-// AFTER /api/find-restaurants has returned `restaurants`:
-const res = await fetch("/api/sponsored-restaurants", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ cuisine: cuisineId, latitude, longitude }),
-});
-const { sponsored } = await res.json();          // [] today, and on any failure
-const merged = mergeSponsoredFirst(sponsored, restaurants);  // from @/lib/sponsored
-// render: if ("isSponsored" in entry) show entry.sponsorshipLabel ("Featured")
-// as a visible badge — never render a sponsored entry unlabelled.
-```
-
-`mergeSponsoredFirst()` is generic over the organic type on purpose, so the sponsored module never imports the match path's types — the dependency runs one way only. It also drops organic duplicates of a sponsored restaurant so the same place isn't listed twice.
-
-And the delivery island, which needs no new API work:
-
-```tsx
-<DeliveryOptions restaurantName={name} latitude={lat} longitude={lon}
-                 sessionId={room.id} cuisineId={cuisineId} client:load />
-```
+The note that used to live here (wiring sponsored results into match-reveal, mounting the delivery island) was followed exactly and is now implemented. Left in git history/this file's earlier revisions if the reasoning is ever needed again; the current state is described in "Integration pass" below rather than duplicated here.
 
 ## Product decisions baked into this rebuild (don't relitigate these)
 
@@ -264,9 +242,19 @@ Now wired to `POST /api/restaurant-menu` (`src/lib/restaurant-menu.ts`). Catalog
 - **`/signup` had no signed-in guard** while `/login` did. Added, same shape, including the `?redirect=` passthrough.
 - **Solo swiping can never match** (the trigger needs ≥ 2 participants) and the empty-deck copy told a lone user to "try more suggestions" — advice that cannot succeed by construction. `/swipe` now says plainly that another person has to join.
 
-**Not done, and why:** the match-reveal page's restaurant list is still the Phase 2 manual-text-entry stub. Wiring it to `/api/find-restaurants` + geolocation is real Phase 3 UI work, not a QA fix, and doing it inside this pass would have buried the safety change.
+**Deferred at the time of this pass, done in the next one:** the match-reveal page's restaurant list was still the Phase 2 manual-text-entry stub — wiring it to `/api/find-restaurants` + geolocation would have buried the safety change in an unrelated diff. See "Integration pass" below for where it landed.
 
-**Known environment limitation at the time of this pass:** the `GEMINI_API_KEY` in `.env` is **over its free-tier quota** — Google returns `HTTP 429 "You exceeded your current quota"` for every call, so both Gemini routes are serving their fallback paths. `test-dietary-safety.mjs` probes for this and prints which path it exercised, because a green run on the fallback path is weaker evidence than a green run against the live model, and a reader should not have to guess which they got. The client-side gate — the boundary that actually has to hold — is fully exercised either way.
+**Known environment limitation at the time of this pass:** the `GEMINI_API_KEY` in `.env` was **over its free-tier quota** — Google returned `HTTP 429 "You exceeded your current quota"` for every call, so both Gemini routes were serving their fallback paths. `test-dietary-safety.mjs` probes for this and prints which path it exercised, because a green run on the fallback path is weaker evidence than a green run against the live model. **Update: the quota had reset by the integration pass** (see below) — `/api/restaurant-menu` returned a real Gemini-generated menu again. Free-tier quota resetting mid-session is apparently a real thing to expect, not a one-time fluke; don't assume a 429 seen once is permanent.
+
+## Integration pass — wiring together what three parallel agents built separately
+
+Three agents (QA blocker fixes, Phase 4, Phase 5) worked in this repo at the same time on strictly disjoint file ownership so they couldn't collide — which also meant none of them could do the last step of connecting their work to each other's. Each left an explicit integration note (see "Where the feedback prompt is NOT yet mounted" under Phase 4, and the sponsorship integration note under Phase 5, both now historical). This pass did that wiring, in `src/components/dishes/dish-swipe-area.tsx`, `src/components/match/match-reveal.tsx`, and `src/pages/api/find-restaurants.ts`.
+
+- **`FeedbackPrompt` (Phase 4) and `DeliveryOptions` (Phase 5)** are now mounted in the dish order summary, gated on `agreed.length > 0` — never shown before the table has actually agreed on something. `FeedbackPrompt` is passed `agreedHere[0]?.dishName` as a best-effort dish name when the room settled on exactly one.
+- **Match reveal's restaurant list** — the Phase 2 stub ("Real nearby restaurant results land here in Phase 3") is gone. Geolocation is requested only on an explicit "Find restaurants near me" tap, never on page load (an unprompted permission dialog is the fastest way to get denied permanently). On success: `POST /api/find-restaurants`, then `POST /api/sponsored-restaurants` for the same matched cuisine, merged via `mergeSponsoredFirst()` exactly per the Phase 5 note — sponsored entries render with a visible "Featured" badge and their own advertiser attribution, never blended in unlabelled. Manual restaurant-name entry is kept as a fallback (geolocation denied/unavailable, mock-fallback results, or the user just already knows where they're going).
+- **Found while wiring this, fixed in the same pass:** `find-restaurants.ts` was inventing a customer rating for every result — `parseFloat((4.1 + Math.random() * 0.8).toFixed(1))` — inherited from the reference project and presented to users as real. This is the exact class of fabrication Phase 5's "no fabricated data" rule exists to prevent (see above), just discovered a layer over from where that rule was written. `rating` is now `number | null`; every fabricated value (Geoapify path and the three hardcoded mock-fallback restaurants) is `null`, and the UI simply omits the field rather than show a fake one.
+- **Verification:** `astro check` 0 errors, `npm run build` clean, `test-e2e.mjs` 129/129 (one run hit the pre-existing §12 Realtime flake, reproduced clean on retry), `test-dietary-safety.mjs` 39/39, `test-monetization.mjs` 75/93 (all 18 failures confirmed genuinely gated on `0015`, not masked by anything below).
+- **Environment hazard found during this verification, worth knowing for any future session on this machine:** `http://localhost:4321` intermittently resolved to a **completely unrelated app** ("TransferHub", a football-transfer news site) instead of this project's dev server — an IPv6/IPv4 loopback ambiguity, where `localhost` resolves to `::1` first and something else on this machine is bound there, while Astro's dev server (started with `--host`) binds the IPv4 `0.0.0.0`/`127.0.0.1`. Symptom looked exactly like a real bug (real 404s, real HTML back from the wrong site) until the response body was actually read. **Always invoke this project's test scripts with `APP_BASE_URL=http://127.0.0.1:4321` explicitly** rather than relying on the `localhost` default, on this machine at least.
 
 ## Key engineering patterns established (reuse, don't reinvent)
 
@@ -354,6 +342,8 @@ An adversarial pass over the backend, run as four real users through the anon ke
 8. Decide on a GitHub remote — nothing has been pushed anywhere yet, only local commits exist.
 
 (`GEMINI_API_KEY` / `GEOAPIFY_API_KEY` are real working keys in `.env`, copied from the reference project.)
+
+**When re-running any of the HTTP-hitting suites above** (`test-dietary-safety.mjs`, `test-monetization.mjs`, or anything else that talks to the dev server), invoke with `APP_BASE_URL=http://127.0.0.1:4321` explicitly — see "Integration pass" above for why `localhost:4321` is not reliable on this machine.
 
 ## How to resume after a context clear
 
