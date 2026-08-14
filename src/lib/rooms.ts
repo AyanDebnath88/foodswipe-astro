@@ -67,6 +67,30 @@ export function clearActiveRoom() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+/**
+ * Clears the cache ONLY if it currently points at `roomId`. Returns whether
+ * it did.
+ *
+ * There is exactly one `foodswipe_active_room` key for the whole app, so the
+ * unconditional clearActiveRoom() above is a blunt instrument: it wipes
+ * whatever room is cached, regardless of which room the caller was acting on.
+ * A QA pass turned that into real data loss -- with room ZJHM cached, visiting
+ * /match/italian?room=ZZZZ and pressing "Leave" destroyed the ZJHM record
+ * while leaving the user a participant of ZJHM server-side. There is no "my
+ * rooms" list to recover from, so the room was simply gone for that user while
+ * they kept counting toward its unanimity denominator.
+ *
+ * Every leave/close path uses this instead. clearActiveRoom() is reserved for
+ * cases where the identity of the cached room is genuinely what's being
+ * discarded (e.g. the cached room no longer resolves at all).
+ */
+export function clearActiveRoomIfMatches(roomId: string): boolean {
+  const stored = loadActiveRoom();
+  if (!stored || stored.id !== roomId) return false;
+  clearActiveRoom();
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Row mapping
 // ---------------------------------------------------------------------------
@@ -209,6 +233,11 @@ export async function fetchRoomParticipants(roomId: string): Promise<Participant
  *
  * A delete that removes 0 rows is not an error: it means the row was already
  * gone (double-click, or a second tab that already left).
+ *
+ * The cache clear is scoped to THIS room (clearActiveRoomIfMatches), not a
+ * blanket clearActiveRoom(). Leaving room X must never evict room Y from the
+ * one global cache key -- see that function's comment for the data loss the
+ * blanket version caused.
  */
 export async function leaveRoom(roomId: string, userId: string): Promise<void> {
   const supabase = createSupabaseBrowserClient();
@@ -218,7 +247,28 @@ export async function leaveRoom(roomId: string, userId: string): Promise<void> {
     .eq("room_id", roomId)
     .eq("user_id", userId);
   if (error) throw error;
-  clearActiveRoom();
+  clearActiveRoomIfMatches(roomId);
+}
+
+/**
+ * Is this user actually a participant of this room right now?
+ *
+ * RLS makes this readable without a dedicated RPC: `room_participants` is
+ * SELECT-able for rooms you belong to, so asking for your own row either
+ * returns it or returns nothing. Used by the header to decide whether to offer
+ * "Leave room" at all -- offering it on a room you aren't in is what let a
+ * mistyped/stale `?room=` code destroy the record of a different room.
+ */
+export async function isRoomParticipant(roomId: string, userId: string): Promise<boolean> {
+  const supabase = createSupabaseBrowserClient();
+  const { data, error } = await supabase
+    .from("room_participants")
+    .select("user_id")
+    .eq("room_id", roomId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return false;
+  return data !== null;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +276,22 @@ export async function leaveRoom(roomId: string, userId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 export interface RoomRealtimeHandlers {
   onSessionChange?: (room: RoomState) => void;
+  /**
+   * The room itself was deleted (its creator closed it, or it was cleaned up).
+   *
+   * This used to be undeliverable. The swipe_sessions handler guarded on
+   * `payload.new && "id" in payload.new`, and for a DELETE `payload.new` is
+   * `{}` -- so the guard was false for exactly the one event that matters most
+   * and every client kept rendering a room that no longer existed. Meanwhile
+   * the dish_matches cascade fired, so the "agreed so far" list silently
+   * emptied itself and nothing said why.
+   *
+   * Verified against the live project before relying on it: a participant's
+   * channel really does receive the DELETE (payload.old carries `{ id }`),
+   * even though their own room_participants row cascades away in the same
+   * statement -- so this needs no polling fallback.
+   */
+  onSessionDeleted?: () => void;
   onParticipantsChange?: () => void;
   onSwipeChange?: () => void;
   onDishSwipeChange?: () => void;
@@ -254,6 +320,13 @@ export function subscribeToRoom(roomId: string, handlers: RoomRealtimeHandlers):
       "postgres_changes",
       { event: "*", schema: "public", table: "swipe_sessions", filter: `id=eq.${roomId}` },
       (payload) => {
+        // DELETE first: its payload.new is {}, so the "id" in payload.new
+        // test below is false for it and deletions were previously dropped
+        // on the floor (see onSessionDeleted's comment).
+        if (payload.eventType === "DELETE") {
+          handlers.onSessionDeleted?.();
+          return;
+        }
         if (payload.new && "id" in payload.new) {
           handlers.onSessionChange?.(mapRoomRow(payload.new as Record<string, unknown>));
         }

@@ -26,11 +26,31 @@
 // SECURITY DEFINER trigger) -- this component never decides a match, it only
 // reads dish_matches and reacts.
 //
-// Dish source is unchanged: the matched cuisine's generic `dishes text[]`
-// from the cuisines catalog (0002_seed_cuisines.sql), scoped to whatever
-// restaurant name the group is looking at. Swapping in a real per-restaurant
-// menu (/api/restaurant-menu) touches only this fetch, not the schema, RLS,
-// or the trigger.
+// DISH SOURCE (changed): the deck now comes from POST /api/restaurant-menu --
+// a real per-restaurant menu for the restaurant the group actually picked.
+// It used to be `cuisines.find(c => c.id === cuisineId)?.dishes ?? []`, which
+// broke in two ways a QA pass caught:
+//   * an AI-suggested cuisine has an `ai-<slug>` id matching no catalog row,
+//     so the deck was literally [] and a group that matched on an AI
+//     suggestion landed on "That's the whole menu / nobody's reached unanimity
+//     here yet" forever, with no dish to swipe. A dead end at the end of the
+//     happy path;
+//   * every restaurant served the same 5 generic catalog dishes, so the
+//     restaurant choice changed nothing about what you were offered.
+// The catalog dishes remain as the OFFLINE fallback only (see loadMenu()).
+//
+// THE ROOM-CONSISTENCY PROBLEM this creates, and how it's handled: the menu
+// comes from a generative model, so two members opening the same restaurant
+// can be served slightly different dish lists, and `dish_swipes` are scoped by
+// (restaurant_name, dish_name) -- a dish only one member can see could never
+// reach unanimity. Rather than add a schema/caching change (a migration nobody
+// in this session can apply), the deck is the UNION of my fetched menu and
+// every dish name the room has already swiped on or agreed at this restaurant
+// (both already synced to every member over Realtime). So a dish someone else
+// sees enters my deck the moment they vote on it, and the group converges on
+// the same set without any new storage. Documented rather than hidden: the
+// proper fix is to persist the menu per (session, restaurant) when a migration
+// is possible again.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DishCard, type Dish } from "./dish-card";
 import { Button } from "@/components/ui/button";
@@ -45,18 +65,30 @@ import {
   ClipboardList,
   ArrowLeft,
   Store,
+  RefreshCw,
+  DoorClosed,
+  WifiOff,
 } from "lucide-react";
-import { fetchCuisines } from "@/lib/cuisines";
+import { fetchCuisines, type Cuisine } from "@/lib/cuisines";
 import { fetchDishSwipes, submitDishSwipe } from "@/lib/dish-swipes";
 import { fetchDishMatches, type DishMatch } from "@/lib/dish-matches";
 import {
   fetchRoomByCode,
   fetchRoomParticipants,
   subscribeToRoom,
+  clearActiveRoomIfMatches,
+  saveActiveRoom,
   type Participant,
   type RoomState,
 } from "@/lib/rooms";
 import { getCurrentUser } from "@/lib/guest-auth";
+import {
+  fetchRestaurantMenu,
+  MenuRateLimitedError,
+  type MenuSource,
+} from "@/lib/restaurant-menu";
+import { errorMessage } from "@/lib/errors";
+import { currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
 
 interface DishSwipeAreaProps {
   cuisineId: string;

@@ -12,8 +12,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CuisineCard } from "./cuisine-card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { X, Heart, Sparkles, Loader2 } from "lucide-react";
-import { fetchCuisines, syntheticCuisineFromName, type Cuisine } from "@/lib/cuisines";
+import { X, Heart, Sparkles, Loader2, Users, DoorClosed } from "lucide-react";
+import { fetchCuisines, resolveSuggestedCuisines, type Cuisine } from "@/lib/cuisines";
 import { filterCuisinesByDietary, unionDietaryRestrictions } from "@/lib/dietary";
 import { suggestCuisines } from "@/lib/ai-suggestions";
 import { fetchSwipesForSession, submitSwipe, type SwipeRow } from "@/lib/swipes";
@@ -21,11 +21,14 @@ import {
   fetchRoomByCode,
   fetchRoomParticipants,
   subscribeToRoom,
-  clearActiveRoom,
+  clearActiveRoomIfMatches,
+  saveActiveRoom,
   type Participant,
   type RoomState,
 } from "@/lib/rooms";
 import { getCurrentUser } from "@/lib/guest-auth";
+import { errorMessage } from "@/lib/errors";
+import { currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
 
 // Reasonable-threshold decision (Task 5): the deck auto-refills with AI
 // suggestions the moment it empties with no match. To avoid hammering
@@ -59,6 +62,12 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [roomSwipes, setRoomSwipes] = useState<Map<string, Map<string, "left" | "right">>>(new Map());
   const [aiLoading, setAiLoading] = useState(false);
+  // Set when the room is deleted out from under us (Realtime DELETE). Until
+  // this existed the deck just kept rendering a room that no longer existed.
+  const [roomClosed, setRoomClosed] = useState(false);
+  // Last honest explanation of why an AI refill added nothing, shown in the
+  // empty-deck state so "no new cards" never looks like a silent failure.
+  const [suggestionNote, setSuggestionNote] = useState<string | null>(null);
 
   const fallbackAttemptsRef = useRef(0);
   const initializedRef = useRef(false);
@@ -92,7 +101,14 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
     (async () => {
       const user = await getCurrentUser();
       if (!user) {
-        window.location.href = "/rooms";
+        // Send them to sign in, carrying BOTH the reason and the destination:
+        // this used to drop to /rooms, which then bounced to /login with the
+        // room code lost, so an invited friend following a swipe link could
+        // never actually reach the room they were invited to.
+        redirectWithNotice("/login", "sign-in-required", {
+          room: roomCode,
+          redirect: currentPathForRedirect(),
+        });
         return;
       }
       if (cancelled) return;
@@ -100,12 +116,16 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
 
       const roomState = await fetchRoomByCode(roomCode);
       if (!roomState) {
-        toast({ variant: "destructive", title: "Room not found", description: `Room "${roomCode}" no longer exists.` });
-        window.location.href = "/rooms";
+        // A toast here was destroyed by the navigation on the next line and
+        // the user never saw it -- the reason now rides along in the URL.
+        redirectWithNotice("/rooms", "not-a-member", { room: roomCode });
         return;
       }
       if (cancelled) return;
       setRoom(roomState);
+      // Keep the room resolvable from anywhere in the app for as long as the
+      // user is really in it (the header's room chip, "Back to the room").
+      saveActiveRoom({ id: roomState.id, code: roomState.code });
 
       if (roomState.status === "matched" && roomState.matchedCuisineId) {
         window.location.href = `/match/${roomState.matchedCuisineId}?room=${roomState.code}`;
@@ -146,13 +166,24 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
       onSessionChange: (updated) => {
         setRoom(updated);
         if (updated.status === "matched" && updated.matchedCuisineId) {
-          clearActiveRoom();
+          // NOT clearActiveRoom(). Matching is the happy path, and wiping the
+          // active-room cache at the exact moment the group succeeds is what
+          // made "Back to the room" from the match page land on an empty
+          // dashboard. The room is still live -- the group still has to pick a
+          // restaurant and swipe dishes together -- so it must stay resolvable.
+          saveActiveRoom({ id: updated.id, code: updated.code });
           toast({
             title: "It's a Match!",
             description: `Everyone in Room ${updated.code} agreed! Redirecting...`,
           });
           window.location.href = `/match/${updated.matchedCuisineId}?room=${updated.code}`;
         }
+      },
+      onSessionDeleted: () => {
+        // The host closed the room. The cached entry now points at a row that
+        // no longer exists, so drop it -- but only if it's THIS room.
+        clearActiveRoomIfMatches(room.id);
+        setRoomClosed(true);
       },
       onParticipantsChange: () => refreshParticipants(room.id),
       onSwipeChange: () => refreshRoomSwipes(room.id),
@@ -169,11 +200,20 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
     setLocalDeck((prev) => filterCuisinesByDietary(prev, requiredRestrictions));
   }, [requiredRestrictions]);
 
+  // The vetted candidate set for THIS room: catalog cuisines that satisfy every
+  // participant's restrictions. This is the only pool an AI suggestion may draw
+  // from when anyone in the room has a restriction.
+  const vettedCuisines = useMemo(
+    () => filterCuisinesByDietary(allCuisines, requiredRestrictions),
+    [allCuisines, requiredRestrictions]
+  );
+
   const handleAiFallback = useCallback(
     async (auto: boolean) => {
       if (!room || aiLoading) return;
       if (auto) fallbackAttemptsRef.current += 1;
       setAiLoading(true);
+      setSuggestionNote(null);
       try {
         const liked: string[] = [];
         const disliked: string[] = [];
@@ -185,55 +225,84 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
           else disliked.push(name);
         }
 
-        const suggestions = await suggestCuisines(liked, disliked, 3);
-        if (suggestions.length === 0) {
-          if (!auto) {
-            toast({
-              title: "No new suggestions",
-              description: "Couldn't get AI suggestions right now -- try again in a bit.",
-            });
-          }
+        const hasRestrictions = requiredRestrictions.length > 0;
+
+        // Gate 1 (quality): tell the endpoint which names are even eligible, so
+        // the model chooses from the room's vetted set instead of inventing
+        // something nobody checked. Omitted entirely for an unrestricted room,
+        // which keeps the original open-ended behaviour and the request
+        // backward-compatible.
+        const allowedNames = hasRestrictions ? vettedCuisines.map((c) => c.name) : undefined;
+
+        // A restricted room whose vetted pool is empty has nothing safe to ask
+        // for. Say so instead of spending a Gemini call to be told nothing.
+        if (hasRestrictions && (allowedNames?.length ?? 0) === 0) {
+          const note =
+            "No cuisine in our catalog satisfies everyone's dietary needs, so there's nothing safe left to suggest. Try widening the restrictions, or split into smaller groups.";
+          setSuggestionNote(note);
+          if (!auto) toast({ title: "No safe options left", description: note });
           return;
         }
 
-        const knownIds = new Set(cuisinesById.keys());
-        const newOnes: Cuisine[] = [];
-        for (const name of suggestions) {
-          const lower = name.toLowerCase();
-          const catalogMatch = allCuisines.find((c) => c.name.toLowerCase() === lower);
-          const candidate = catalogMatch ?? syntheticCuisineFromName(name);
-          if (knownIds.has(candidate.id)) continue;
-          // Real catalog cuisines still have to pass the dietary filter;
-          // synthetic (fully novel) suggestions have no dietary_tags data
-          // to check against, so they're shown unfiltered -- see
-          // syntheticCuisineFromName()'s comment in src/lib/cuisines.ts.
-          if (catalogMatch && filterCuisinesByDietary([catalogMatch], requiredRestrictions).length === 0) {
-            continue;
-          }
-          knownIds.add(candidate.id);
-          newOnes.push(candidate);
+        const suggestions = await suggestCuisines(liked, disliked, 3, allowedNames);
+        if (suggestions.length === 0) {
+          const note = hasRestrictions
+            ? "No safe options left -- everything that fits the group's dietary needs is already in the deck. Try widening the restrictions, or pick a restaurant directly."
+            : "Couldn't get AI suggestions right now -- try again in a bit.";
+          setSuggestionNote(note);
+          if (!auto) toast({ title: "No new suggestions", description: note });
+          return;
         }
 
-        if (newOnes.length > 0) {
-          setExtraCuisines((prev) => [...prev, ...newOnes]);
-          setLocalDeck((prev) => [...prev, ...newOnes]);
+        // Gate 2 (safety): re-check every returned name locally. /api/suggest-
+        // cuisines is unauthenticated and its whitelist lives on the far side of
+        // a network call, so the deck does not take its word for it. Names that
+        // don't resolve to a vetted catalog row are dropped in a restricted
+        // room -- this is the fix for the bug where "Get AI Suggestions" added
+        // an unvetted synthetic card ("Chinese") to a halal + gluten-free room
+        // and the room then matched on it.
+        const { accepted, rejectedUnvetted, rejectedDietary } = resolveSuggestedCuisines(
+          suggestions,
+          allCuisines,
+          requiredRestrictions,
+          new Set(cuisinesById.keys())
+        );
+
+        if (accepted.length > 0) {
+          setExtraCuisines((prev) => [...prev, ...accepted]);
+          setLocalDeck((prev) => [...prev, ...accepted]);
           toast({
             title: "Stuck? Here's some inspiration!",
-            description: `Added ${newOnes.map((c) => c.name).join(", ")} to the deck.`,
+            description: `Added ${accepted.map((c) => c.name).join(", ")} to the deck.`,
           });
-        } else if (!auto) {
-          toast({ title: "No new suggestions", description: "The AI didn't have anything new to add." });
+          return;
+        }
+
+        const dropped = rejectedUnvetted.length + rejectedDietary.length;
+        const note =
+          dropped > 0
+            ? `We left out ${[...rejectedUnvetted, ...rejectedDietary].join(", ")} because ${
+                rejectedUnvetted.length > 0
+                  ? "we can't confirm it meets everyone's dietary needs"
+                  : "it conflicts with someone's dietary needs"
+              }. No safe options left -- try widening the restrictions, or pick a restaurant directly.`
+            : "The AI didn't have anything new to add.";
+        setSuggestionNote(note);
+        if (!auto) {
+          toast({ title: dropped > 0 ? "No safe options left" : "No new suggestions", description: note });
         }
       } catch (err) {
         console.error("AI fallback failed:", err);
+        const message = errorMessage(err, "Could not fetch AI suggestions.");
+        setSuggestionNote(message);
         if (!auto) {
-          toast({ variant: "destructive", title: "Error", description: "Could not fetch AI suggestions." });
+          toast({ variant: "destructive", title: "Error", description: message });
         }
       } finally {
         setAiLoading(false);
       }
     },
-    [room, aiLoading, roomSwipes, cuisinesById, allCuisines, requiredRestrictions, toast]
+    [room, aiLoading, roomSwipes, cuisinesById, allCuisines, vettedCuisines, requiredRestrictions, toast]
   );
 
   // Task 5: auto-trigger once the deck empties with no match yet.
@@ -272,7 +341,11 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
       }
     } catch (err) {
       console.error("Swipe error:", err);
-      toast({ variant: "destructive", title: "Swipe Error", description: "Failed to record your vote." });
+      toast({
+        variant: "destructive",
+        title: "Swipe Error",
+        description: errorMessage(err, "Failed to record your vote."),
+      });
       return;
     }
 
@@ -285,6 +358,11 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
   };
 
   const votesOnCurrent = currentCuisine ? roomSwipes.get(currentCuisine.id)?.size ?? 0 : 0;
+  // A match needs every current participant to swipe right, and the trigger
+  // requires >= 2 of them (0009). One person can therefore swipe the entire
+  // deck and never match, which the old empty-state copy papered over by
+  // suggesting "more suggestions" -- advice that cannot work by construction.
+  const isSolo = participants.length < 2;
 
   if (loadingRoom) {
     return (
@@ -295,8 +373,41 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
     );
   }
 
+  if (roomClosed) {
+    return (
+      <div className="w-full max-w-sm text-center p-8 bg-card rounded-2xl shadow-lg">
+        <div className="mx-auto bg-destructive/15 p-3 rounded-full mb-3 w-fit">
+          <DoorClosed className="h-8 w-8 text-destructive" />
+        </div>
+        <h3 className="text-xl font-headline mb-2">This room was closed</h3>
+        <p className="text-muted-foreground font-body text-sm mb-6">
+          The host closed room {roomCode} while you were swiping, so this session has ended. Your votes here
+          are gone with it -- start a new room, or join another one.
+        </p>
+        <Button asChild className="w-full h-11 rounded-2xl">
+          <a href="/rooms">Back to rooms</a>
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-sm flex flex-col items-center">
+      {isSolo && (
+        <div className="w-full mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-center">
+          <p className="font-body text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
+            <Users className="h-4 w-4" />
+            You're the only one here
+          </p>
+          <p className="font-body text-xs text-muted-foreground mt-1">
+            A match needs at least two people to swipe right on the same cuisine, so nothing can match until
+            someone else joins room{" "}
+            <span className="font-bold text-foreground select-all">{roomCode}</span>. Keep swiping if you
+            like -- your votes are saved and count the moment they arrive.
+          </p>
+        </div>
+      )}
+
       <div className="relative w-full h-[500px] flex items-center justify-center">
         {localDeck.length > 0 ? (
           [...localDeck]
@@ -318,8 +429,17 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
             <p className="text-muted-foreground mb-4">
               {aiLoading
                 ? "Asking the AI for a few more cuisines everyone might like."
-                : "You've swiped through all available cuisines. No match yet -- try more suggestions."}
+                : isSolo
+                  ? // Telling a lone swiper to "try more suggestions" is advice
+                    // that cannot succeed: the match trigger needs >= 2
+                    // participants, so no number of extra cards will ever
+                    // produce a match on their own.
+                    "You've swiped everything. Nothing can match until someone else joins this room -- more cards won't change that."
+                  : "You've swiped through all available cuisines. No match yet -- waiting on the rest of the group, or try a few more suggestions."}
             </p>
+            {suggestionNote && !aiLoading && (
+              <p className="text-muted-foreground/90 font-body text-xs mb-4 border-t pt-3">{suggestionNote}</p>
+            )}
             <Button onClick={() => handleAiFallback(false)} disabled={aiLoading}>
               {aiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
               Get AI Suggestions
