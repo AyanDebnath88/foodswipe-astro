@@ -1,7 +1,11 @@
 // POST /api/delivery-links
 //
 //   body:     { restaurantName: string, latitude: number, longitude: number }
-//   response: { services: DeliveryLink[], region: "IN" | "UK" | "EU" | "GLOBAL" }
+//   response: { services: DeliveryLink[],
+//               region: "IN" | "UK" | "EU" | "GLOBAL",
+//               affiliateDisclosure: boolean }
+//
+//   DeliveryLink = { serviceName: string, url: string, affiliate: boolean }
 //
 // Loosely ported from the reference project's find-delivery-prices.ts, but
 // deliberately NOT a straight port: that file fabricated per-service prices
@@ -12,10 +16,20 @@
 // service selection and search deep-link URLs. No price is shown to the
 // user because none of these numbers would be real.
 //
-// Affiliate tracking IDs are NOT included in these URLs -- they get added
-// in Phase 5 once the affiliate programs (DoorDash, Uber Eats, Swiggy,
-// Zomato, Deliveroo, Just Eat, Wolt, Lieferando) are actually signed up for.
+// Phase 5 (monetization) added affiliate decoration on top, WITHOUT changing
+// any of the above: the search URLs are still the same real search URLs, and
+// still carry no prices. src/lib/affiliates.ts adds a tracking id to a link
+// only when that service's program has actually been signed up for and its
+// env vars are set. None are set today, so today every link comes back
+// exactly as it did before and `affiliate` is false across the board -- that
+// path is the tested default, not an afterthought.
+//
+// `affiliateDisclosure` is true only when at least one link on this response
+// really was tagged. The UI shows the "we may earn a commission" line off
+// that flag, so the app never claims a commercial relationship it doesn't
+// have (and never hides one it does).
 import type { APIRoute } from "astro";
+import { anyAffiliate, decorateDeliveryUrl } from "@/lib/affiliates";
 import {
   BadRequest,
   cleanText,
@@ -39,6 +53,8 @@ const RATE_LIMIT_PER_WINDOW = 25;
 interface DeliveryLink {
   serviceName: string;
   url: string;
+  /** True only if a real tracking id was applied. See src/lib/affiliates.ts. */
+  affiliate: boolean;
 }
 
 type Region = "IN" | "UK" | "EU" | "GLOBAL";
@@ -59,7 +75,8 @@ function resolveRegion(latitude: number, longitude: number): Region {
   return "GLOBAL";
 }
 
-function buildLinks(region: Region, restaurantName: string): DeliveryLink[] {
+/** The plain, un-tagged search links. Affiliate decoration happens after. */
+function buildLinks(region: Region, restaurantName: string): Array<Omit<DeliveryLink, "affiliate">> {
   const q = encodeURIComponent(restaurantName);
 
   switch (region) {
@@ -116,7 +133,14 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const region = resolveRegion(latitude, longitude);
-  const services = buildLinks(region, restaurantName);
 
-  return json({ services, region });
+  // Decorate per-link rather than per-region: affiliate programs are signed
+  // up for one service at a time, so a region will routinely be a mix of
+  // tagged and untagged links, and each one has to report its own truth.
+  const services: DeliveryLink[] = buildLinks(region, restaurantName).map((link) => {
+    const decorated = decorateDeliveryUrl(link.serviceName, link.url);
+    return { serviceName: link.serviceName, url: decorated.url, affiliate: decorated.affiliate };
+  });
+
+  return json({ services, region, affiliateDisclosure: anyAffiliate(services) });
 };
