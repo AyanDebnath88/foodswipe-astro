@@ -89,6 +89,8 @@ import {
 } from "@/lib/restaurant-menu";
 import { errorMessage } from "@/lib/errors";
 import { currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
+import { DeliveryOptions } from "@/components/delivery/delivery-options";
+import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 
 interface DishSwipeAreaProps {
   cuisineId: string;
@@ -490,6 +492,33 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
             The group didn't reach unanimity on any dish. Try another restaurant, or keep swiping -- a dish
             only lands here once <em>everyone</em> in the room says yes.
           </p>
+        )}
+
+        {/* Ordering + post-meal feedback, both only once the table actually
+            agreed on something. Delivery links are the Phase 5 affiliate
+            surface; they degrade to plain search links when no affiliate ids
+            are configured (which is today's state). The feedback prompt is
+            the Phase 4 retention hook -- it's a card, never a modal, and is
+            dismissible, so it can't become another dead end. */}
+        {agreed.length > 0 && (
+          <div className="mt-6 text-left">
+            <DeliveryOptions
+              restaurantName={restaurantName}
+              sessionId={room?.id}
+              cuisineId={cuisineId}
+            />
+            {room && userId && (
+              <div className="mt-4">
+                <FeedbackPrompt
+                  sessionId={room.id}
+                  userId={userId}
+                  roomCode={roomCode}
+                  restaurantName={restaurantName}
+                  dishName={agreedHere[0]?.dishName ?? null}
+                />
+              </div>
+            )}
+          </div>
         )}
 
         <div className="mt-8 flex flex-col gap-2">

@@ -36,7 +36,8 @@ const RATE_LIMIT_PER_WINDOW = 8;
 export interface Restaurant {
   name: string;
   vicinity: string;
-  rating: number;
+  /** Null whenever we have no genuine rating. Never invent one. */
+  rating: number | null;
   website: string;
 }
 
@@ -58,19 +59,19 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
     {
       name: `${mockPrefix} ${capitalizedCuisine} Kitchen`,
       vicinity: `1.5 km away, Park Street, ${addressCity}`,
-      rating: 4.7,
+      rating: null,
       website: `https://www.google.com/search?q=${encodeURIComponent(mockPrefix + " " + cuisine + " restaurant " + addressCity)}`,
     },
     {
       name: `Tandoor & ${capitalizedCuisine} Bistro`,
       vicinity: `3.2 km away, Salt Lake Sector V, ${addressCity}`,
-      rating: 4.5,
+      rating: null,
       website: `https://www.google.com/search?q=${encodeURIComponent(cuisine + " restaurant Salt Lake " + addressCity)}`,
     },
     {
       name: `Bukhara ${capitalizedCuisine} House`,
       vicinity: `5.4 km away, Gariahat Crossing, ${addressCity}`,
-      rating: 4.8,
+      rating: null,
       website: `https://www.google.com/search?q=${encodeURIComponent("Bukhara " + cuisine + " restaurant " + addressCity)}`,
     },
   ];
@@ -104,9 +105,13 @@ async function fetchFromGeoapify(
 
     const name: string = props.name;
     const vicinity = props.formatted || props.street || `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
-    // Geoapify does not supply customer review ratings, so we provide an
-    // aesthetic placeholder in the same range as the reference project.
-    const rating = parseFloat((4.1 + Math.random() * 0.8).toFixed(1));
+    // Geoapify does not supply customer review ratings. The reference project
+    // filled the gap with `4.1 + Math.random() * 0.8` -- a randomly invented
+    // number rendered to users as a customer rating, which is the same class
+    // of fabrication as the old app's hardcoded "delivery prices" (removed for
+    // exactly this reason). A real restaurant judged by a dice roll is worse
+    // than no rating at all, so this is null and the UI omits the field.
+    const rating = null;
     const website = props.website || `https://www.google.com/search?q=${encodeURIComponent(name + " restaurant")}`;
 
     const record: Restaurant = { name, vicinity, rating, website };

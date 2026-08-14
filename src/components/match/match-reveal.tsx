@@ -1,20 +1,21 @@
 "use client";
 
-// Phase 2, Task 8: match reveal page. Ported from the reference Next.js
-// project's src/app/(app)/match/[cuisine]/page.tsx -- but ONLY the reveal
-// moment (heading, "You all want X!" copy, meal-time heading logic). The
-// restaurant-fetching logic (useLocation + findRestaurants AI flow in the
-// reference) is explicitly out of scope for this phase per the task brief:
-// that's the teammate's Phase 3 territory (their /api/find-restaurants.ts
-// contract), even though it has since landed -- wiring the reveal page up
-// to it is left for them to do, not assumed here. The section below is a
-// clearly-marked stub.
+// Match reveal page. Ported from the reference Next.js project's
+// src/app/(app)/match/[cuisine]/page.tsx -- the reveal moment (heading,
+// "You all want X!" copy, meal-time heading logic) plus real restaurant
+// discovery via /api/find-restaurants, sponsored placements merged in via
+// /api/sponsored-restaurants (see src/lib/sponsored.ts for the guardrail:
+// sponsorship can only affect which restaurants surface after a cuisine is
+// already matched, never the match itself), and a manual "type a name"
+// fallback for when geolocation isn't available or nothing nearby matches.
 import React, { useEffect, useState } from "react";
-import { Heart, Sparkles, Utensils, Loader2 } from "lucide-react";
+import { Heart, Utensils, Loader2, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fetchRoomByCode, type RoomState } from "@/lib/rooms";
 import { CUISINE_EMOJI } from "@/lib/cuisines";
+import { mergeSponsoredFirst, type SponsoredRestaurant } from "@/lib/sponsored";
+import type { Restaurant } from "@/pages/api/find-restaurants";
 
 interface MatchRevealProps {
   cuisineId: string;
@@ -53,6 +54,10 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
     "loading"
   );
   const [restaurantNameInput, setRestaurantNameInput] = useState("");
+  const [locationStatus, setLocationStatus] = useState<"idle" | "locating" | "done" | "error">("idle");
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [places, setPlaces] = useState<Array<SponsoredRestaurant | Restaurant>>([]);
+  const [resultSource, setResultSource] = useState<string | null>(null);
   const emoji = CUISINE_EMOJI[cuisineId] ?? "🍽️";
   const cuisineName = titleCase(cuisineId.replace(/^ai-/, "").replace(/-/g, " "));
 
@@ -87,10 +92,81 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
     };
   }, [roomCode, cuisineId]);
 
+  const goToDishes = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    window.location.href = `/match/${cuisineId}/${encodeURIComponent(trimmed)}?room=${roomCode}`;
+  };
+
   const handleContinueToDishes = (e: React.FormEvent) => {
     e.preventDefault();
-    if (restaurantNameInput.trim().length === 0) return;
-    window.location.href = `/match/${cuisineId}/${encodeURIComponent(restaurantNameInput.trim())}?room=${roomCode}`;
+    goToDishes(restaurantNameInput);
+  };
+
+  // Restaurant discovery. Geolocation is only requested on an explicit tap
+  // (see the button below) -- an unprompted permission dialog is the fastest
+  // route to a permanent denial, which the user can only undo in browser
+  // settings.
+  const findNearby = () => {
+    if (!navigator.geolocation) {
+      setLocationError("This browser can't share your location. Type a restaurant name instead.");
+      setLocationStatus("error");
+      return;
+    }
+    setLocationStatus("locating");
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch("/api/find-restaurants", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cuisine: cuisineName, latitude, longitude }),
+          });
+          if (res.status === 429) {
+            setLocationError("Too many searches at once. Give it a few seconds and try again.");
+            setLocationStatus("error");
+            return;
+          }
+          if (!res.ok) throw new Error(`find-restaurants returned ${res.status}`);
+          const data: { restaurants: Restaurant[]; source: string } = await res.json();
+
+          // Sponsored placements are fetched only now -- after a real match,
+          // for that matched cuisine. mergeSponsoredFirst() keeps them
+          // structurally distinct so they always render with their label.
+          let sponsored: SponsoredRestaurant[] = [];
+          try {
+            const sRes = await fetch("/api/sponsored-restaurants", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cuisine: cuisineId, latitude, longitude }),
+            });
+            if (sRes.ok) sponsored = (await sRes.json()).sponsored ?? [];
+          } catch {
+            // Sponsorship is never load-bearing: organic results stand alone.
+          }
+
+          setPlaces(mergeSponsoredFirst(sponsored, data.restaurants ?? []));
+          setResultSource(data.source ?? null);
+          setLocationStatus("done");
+        } catch (err) {
+          console.error("Restaurant search failed:", err);
+          setLocationError("Couldn't load nearby restaurants just now.");
+          setLocationStatus("error");
+        }
+      },
+      (err) => {
+        setLocationError(
+          err.code === err.PERMISSION_DENIED
+            ? "Location access was denied, so we can't look up places near you."
+            : "Couldn't work out where you are."
+        );
+        setLocationStatus("error");
+      },
+      { timeout: 10000 }
+    );
   };
 
   // Dead-end fix: this page used to render its full reveal + "type a
@@ -196,25 +272,118 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
       </div>
 
       {/*
-        STUB (Task 8): restaurant discovery is Phase 3 territory
-        (POST /api/find-restaurants + geolocation UX from the reference
-        project's location-handler.tsx). This phase intentionally does not
-        fetch or render real restaurant results -- only a placeholder plus
-        a manual "type a restaurant name" bridge so Task 7's dish-level
-        room sync is reachable and testable ahead of that wiring landing.
+        Restaurant discovery. Geolocation is requested on an explicit tap, not
+        on mount -- a permission prompt the user didn't ask for is the fastest
+        way to get it denied permanently, and a denial here is unrecoverable
+        without digging through browser settings.
+
+        Sponsored placements are merged in AFTER the organic results return
+        and only ever for an already-matched cuisine. See src/lib/sponsored.ts:
+        paid placement must never be able to influence what a group agrees on,
+        only which restaurants surface once they've already agreed.
       */}
-      <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-card/40 p-8 text-center mb-8">
-        <Utensils className="h-8 w-8 text-primary mx-auto mb-3" />
-        <p className="text-muted-foreground font-body">
-          Real nearby restaurant results land here in Phase 3 (restaurant discovery + AI). For now, pick a
-          restaurant manually to try the group dish-swiping flow below.
-        </p>
-        <Sparkles className="h-4 w-4 text-primary/60 mx-auto mt-3" />
-      </div>
+      {locationStatus === "idle" && (
+        <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-card/40 p-8 text-center mb-8">
+          <Utensils className="h-8 w-8 text-primary mx-auto mb-3" />
+          <p className="text-muted-foreground font-body mb-4">
+            Find {cuisineName} places near you, or type a restaurant in yourself.
+          </p>
+          <Button onClick={findNearby} className="h-11 rounded-2xl">
+            <MapPin className="h-4 w-4" />
+            Find restaurants near me
+          </Button>
+        </div>
+      )}
+
+      {locationStatus === "locating" && (
+        <div className="rounded-2xl border border-primary/20 bg-card/40 p-8 text-center mb-8">
+          <Loader2 className="h-6 w-6 text-primary mx-auto mb-3 animate-spin" />
+          <p className="text-muted-foreground font-body text-sm">
+            {places.length === 0 ? "Getting your location..." : "Looking for places..."}
+          </p>
+        </div>
+      )}
+
+      {locationStatus === "error" && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center mb-8">
+          <p className="text-foreground font-body text-sm">{locationError}</p>
+          <div className="mt-4 flex flex-wrap gap-2 justify-center">
+            <Button variant="outline" onClick={findNearby} className="rounded-2xl">
+              Try again
+            </Button>
+          </div>
+          <p className="text-muted-foreground font-body text-xs mt-3">
+            You can still type a restaurant name below.
+          </p>
+        </div>
+      )}
+
+      {locationStatus === "done" && (
+        <div className="mb-8">
+          {resultSource === "mock" && (
+            <p className="text-muted-foreground font-body text-xs mb-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              We couldn't reach the restaurant service, so these are example places, not real nearby
+              results. Type a restaurant name below if you already have somewhere in mind.
+            </p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {places.map((place, i) => {
+              const sponsored = "isSponsored" in place;
+              const address = sponsored ? place.address : place.vicinity;
+              return (
+                <div
+                  key={`${place.name}-${i}`}
+                  className="rounded-2xl border border-primary/15 bg-card/70 backdrop-blur-md p-5 flex flex-col"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-headline text-lg leading-tight">{place.name}</h3>
+                    {sponsored && (
+                      <span className="shrink-0 text-[10px] uppercase font-bold tracking-wide bg-accent text-accent-foreground rounded-md px-2 py-0.5">
+                        {place.sponsorshipLabel}
+                      </span>
+                    )}
+                  </div>
+                  {address && (
+                    <p className="font-body text-xs text-muted-foreground mt-1.5 line-clamp-2">{address}</p>
+                  )}
+                  {sponsored && place.advertiserName && (
+                    <p className="font-body text-[11px] text-muted-foreground mt-1">
+                      Paid placement by {place.advertiserName}
+                    </p>
+                  )}
+                  <div className="mt-4 flex flex-col gap-2">
+                    <Button
+                      onClick={() => goToDishes(place.name)}
+                      className="w-full rounded-2xl h-10 text-sm"
+                    >
+                      Swipe dishes here
+                    </Button>
+                    {place.website && (
+                      <a
+                        href={place.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
+                      >
+                        View details
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {places.length === 0 && (
+            <p className="text-muted-foreground font-body text-sm text-center">
+              No {cuisineName} places found nearby. Try typing a restaurant name below.
+            </p>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleContinueToDishes} className="max-w-sm mx-auto flex flex-col gap-3">
         <label htmlFor="restaurantName" className="font-body text-xs text-muted-foreground uppercase font-bold tracking-wider text-center">
-          Restaurant Name (temporary manual entry)
+          Or enter a restaurant name
         </label>
         <Input
           id="restaurantName"
