@@ -258,6 +258,17 @@ Three agents (QA blocker fixes, Phase 4, Phase 5) worked in this repo at the sam
 - **Verification:** `astro check` 0 errors, `npm run build` clean, `test-e2e.mjs` 129/129 (one run hit the pre-existing §12 Realtime flake, reproduced clean on retry), `test-dietary-safety.mjs` 39/39, `test-monetization.mjs` 75/93 (all 18 failures confirmed genuinely gated on `0015`, not masked by anything below).
 - **Environment hazard found during this verification, worth knowing for any future session on this machine:** `http://localhost:4321` intermittently resolved to a **completely unrelated app** ("TransferHub", a football-transfer news site) instead of this project's dev server — an IPv6/IPv4 loopback ambiguity, where `localhost` resolves to `::1` first and something else on this machine is bound there, while Astro's dev server (started with `--host`) binds the IPv4 `0.0.0.0`/`127.0.0.1`. Symptom looked exactly like a real bug (real 404s, real HTML back from the wrong site) until the response body was actually read. **Always invoke this project's test scripts with `APP_BASE_URL=http://127.0.0.1:4321` explicitly** rather than relying on the `localhost` default, on this machine at least.
 
+## Design skills installed for the Design & assets phase
+
+Target audience for the redesign: **15-40 year olds**. Two design skills were audited/installed into this project's `.claude/skills/` on 2026-08-15 (run `/reload-skills` if they're not showing as available):
+
+- **`frontend-design`** — Anthropic's own official skill (copied verbatim from `anthropics/claude-code`). Core discipline: ban the three AI-slop-default looks (cream-background+terracotta-serif, near-black+neon-accent, broadsheet-hairline-grid), pin a concrete subject/audience before designing, plan a token system (4-6 named colors, 2+ typefaces, layout concept) *before* writing any CSS, and critique the plan against genericness before building.
+- **`impeccable`** (v4.1.1, github.com/pbakaus/impeccable, Apache 2.0) — installed via its own CLI, not hand-copied. 20+ invocable commands: `audit`/`critique` (grades a UI across 10 dimensions), `polish`, `bolder`/`quieter`, `colorize`, `animate`, `distill`, `adapt` (responsive), `harden`, `typeset`, `layout`, and more. Also wired a local hook (`.claude/settings.local.json`, gitignored) that runs an anti-pattern detector after edits to UI files and on session stop.
+
+Already available globally, no install needed: `anthropic-skills:ui-ux-pro-max` (structural rules per product type — this app is a mobile-first consumer swipe app, not a dashboard) and `anthropic-skills:design-system` (three-layer token architecture).
+
+**Known findings already waiting for this phase** (don't rediscover): the two swipe buttons (`X`/`Heart` in `swipe-area.tsx`) have no `aria-label` — found during the Playwright testing pass, not yet fixed.
+
 ## Live multi-user testing (Playwright)
 
 `scripts/playwright/` — real, watchable, genuinely-independent two-user browser testing, added 2026-08-15 because the in-app Browser pane tool shares one cookie jar across every tab it opens and can therefore never hold two different logged-in users at once, which is exactly what a room/swipe/match app needs to test for real. Playwright browser *contexts* are fully isolated (separate cookies/localStorage/IndexedDB), so N real independent logins run side by side in one process. There's no shared display to stream to in this environment, so "live" means: act → screenshot the session → look at the PNG → next action.
