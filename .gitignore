@@ -30,3 +30,8 @@ Thumbs.db
 
 # vercel
 .vercel/
+
+# playwright live-demo screenshots -- regenerated every run, not build artifacts
+scripts/playwright/screenshots/
+test-results/
+playwright-report/
