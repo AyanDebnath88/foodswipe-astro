@@ -1,45 +1,65 @@
 @import "tailwindcss";
 
 /*
- * Brand tokens ported from the reference Next.js project's docs/blueprint.md
- * and tailwind.config.ts. HSL raw values live on :root (mirrors the old
- * shadcn-style `hsl(var(--x))` indirection) and are mapped into Tailwind v4's
- * @theme so utilities like bg-primary, text-accent-foreground, font-headline
- * are generated automatically.
+ * Brand tokens for the 2026-08-15 design pass -- "Modern Korean Bistro"
+ * everyday palette, resolved from a hybrid direction the user picked after
+ * reviewing three concrete mockups (see .claude/skills/build-log/SKILL.md,
+ * "Design skills installed for the Design & assets phase" and the plan at
+ * C:\Users\ajitd\.claude\plans\composed-finding-sutton.md for the full
+ * resolution). Replaces the original salmon/peach/dusty-pink blueprint
+ * palette (kept losslessly through Phase 0-5, never given real design
+ * craft -- this is that craft pass).
  *
- *   Primary:    #FFB3B3 (light salmon pink)  -> hsl(0 100% 85%)
- *   Background: #F0E6E6 (very light dusty pink) -> hsl(0 25% 92%)
- *   Accent:     #FFDAB9 (peach)               -> hsl(28 100% 86%)
+ * HSL raw values live on :root (mirrors the old shadcn-style
+ * `hsl(var(--x))` indirection) and are mapped into Tailwind v4's @theme so
+ * utilities like bg-primary, text-accent-foreground, font-headline are
+ * generated automatically.
+ *
+ *   Background (ivory):    #FBF3EC -> hsl(28 65% 95%)
+ *   Foreground (ink):      #1C1410 -> hsl(20 27% 9%)  -- true near-black,
+ *     not the old soft brown. This is where "deep blacks" lives in the
+ *     everyday palette: as ink, never as a background.
+ *   Primary (terracotta):  #D97757 -> hsl(15 63% 60%)
+ *   Secondary (sage):      #9CAE8C -> hsl(92 17% 62%)
+ *   Accent (gold):         #E8C87E -> hsl(42 70% 70%)
+ *   Card (warm white):     #FEFCF9 -> hsl(36 71% 99%)
+ *
+ * IMPORTANT: the match-reveal celebration moment (void backdrop + neon
+ * glow, the "Hongdae Neon" half of the hybrid direction) is deliberately
+ * NOT here. Those tokens are scoped to .match-reveal-scope near the bottom
+ * of this file and are never added to @theme inline -- see that section's
+ * comment for why. The everyday app must never accidentally pick up the
+ * celebration palette; that boundary is the actual design decision.
  */
 
 :root {
-  --background: 0 25% 92%;
-  --foreground: 20 10% 15%;
+  --background: 28 65% 95%;
+  --foreground: 20 27% 9%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 20 10% 15%;
+  --card: 36 71% 99%;
+  --card-foreground: 20 27% 9%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 10% 15%;
+  --popover: 36 71% 99%;
+  --popover-foreground: 20 27% 9%;
 
-  --primary: 0 100% 85%;
-  --primary-foreground: 0 40% 20%;
+  --primary: 15 63% 60%;
+  --primary-foreground: 36 71% 99%;
 
-  --secondary: 0 55% 72%;
-  --secondary-foreground: 0 0% 100%;
+  --secondary: 92 17% 62%;
+  --secondary-foreground: 20 27% 9%;
 
-  --muted: 0 20% 95%;
-  --muted-foreground: 20 10% 40%;
+  --muted: 29 53% 92%;
+  --muted-foreground: 27 14% 37%;
 
-  --accent: 28 100% 86%;
-  --accent-foreground: 25 40% 20%;
+  --accent: 42 70% 70%;
+  --accent-foreground: 20 27% 9%;
 
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive: 4 54% 49%;
+  --destructive-foreground: 36 71% 99%;
 
-  --border: 0 20% 85%;
-  --input: 0 20% 85%;
-  --ring: 0 100% 75%;
+  --border: 28 34% 84%;
+  --input: 28 34% 84%;
+  --ring: 17 68% 65%;
 
   --radius: 0.75rem;
 }
@@ -77,9 +97,26 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
-  /* Headline font: 'Belleza' sans-serif. Body font: 'Alegreya' serif. */
-  --font-headline: "Belleza", sans-serif;
-  --font-body: "Alegreya", serif;
+  /*
+   * Headline font: Fraunces (variable, serif). Body font: Inter (sans).
+   * Replaces Belleza/Alegreya, which were the old palette's pairing, not
+   * this one's. Fraunces is used deliberately for BOTH the everyday
+   * headline register (refined, editorial, Bistro-appropriate at normal
+   * weight) and the match-reveal celebration register (its wght/opsz axes
+   * flex bold/wide enough to carry sticker-badge/neon-moment energy) so the
+   * type system stays at 2 font files instead of 3. If the boldest Fraunces
+   * cut doesn't read as "neon-badge" energy against the celebration void
+   * backdrop once built, the documented fallback is a single condensed
+   * display face (e.g. Archivo Black) scoped ONLY to match-reveal badges/
+   * headline -- never loaded elsewhere. See BaseLayout.astro for the
+   * Google Fonts <link>.
+   *
+   * Inter is the body face: a swipe-heavy mobile app needs small-screen
+   * legibility more than serif character, which is a real shift from the
+   * original blueprint's serif-body Alegreya -- deliberate, not an oversight.
+   */
+  --font-headline: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
 }
 
 @layer base {
@@ -114,4 +151,29 @@
 }
 .animate-swipe-out-right {
   animation: swipe-out-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/*
+ * MATCH-REVEAL CELEBRATION TOKENS -- scoped, not global. Do not use outside
+ * .match-reveal-scope.
+ *
+ * These three are the "Hongdae Neon Café" half of the resolved hybrid
+ * direction (deep-black backdrop + neon glow), deliberately kept OUT of
+ * :root and OUT of @theme inline. Putting them in @theme inline would
+ * generate global bg-void/text-neon-pink/etc. Tailwind utilities usable
+ * (and misusable) anywhere in the app -- which would let the celebration
+ * palette leak into the everyday ivory/terracotta/sage app the user
+ * explicitly asked to stay light, not dark-mode. The match-reveal moment is
+ * the one deliberately bold, bounded exception; scoping these variables to
+ * a wrapper class is what enforces that boundary in code, not just in intent.
+ *
+ * Usage: wrap the match-reveal celebration markup in a `.match-reveal-scope`
+ * element, then reference these as plain CSS vars (`background: var(--void)`,
+ * `box-shadow: 0 0 40px var(--neon-pink)`, etc.) or Tailwind arbitrary values
+ * (`bg-[var(--void)]`) from within that scope only.
+ */
+.match-reveal-scope {
+  --void: 313 33% 11%;        /* #241220 */
+  --neon-pink: 331 100% 65%;  /* #FF4FA3 */
+  --neon-mint: 168 76% 58%;   /* #43E5C5 */
 }
