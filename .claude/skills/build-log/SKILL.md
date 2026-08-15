@@ -23,8 +23,9 @@ Astro (React islands) + Tailwind v4 + Supabase (Postgres/Auth/Realtime) + Vercel
 | 1 — Auth & core UI | ✅ done | Real Supabase Auth (email/pass + Google OAuth path), guest-auth groundwork, landing/login/signup pages |
 | 2 — Swipe & matching core | ✅ done | Rooms (create/join/guest-join), Realtime sync, dietary filter, server-side match detection, AI match fallback, dish-level room sync, shareable links — see "Phase 2 detail" below |
 | 3 — Restaurant discovery & AI | ✅ done | `/api/suggest-cuisines`, `/api/find-restaurants`, `/api/restaurant-menu`, `/api/delivery-links` — see "Phase 3 detail" below. Built and verified independently of Phase 2 (no dependency between them); Phase 2 was still in progress when this landed. |
-| 4 — Retention loop | ⏳ code+tests done, integrated, **migration `0014` pending user** | Post-meal feedback, solo history + favourites, async rooms. UI/lib/tests landed AND the feedback prompt is now mounted in the dish order summary (integration pass, see below). The two new tables are waiting on the SQL editor. See "Phase 4 detail" below |
-| 5 — Monetization hooks | ⏳ code+tests done, integrated, **migration `0015` pending user** | Affiliate-ready delivery links + click tracking, and sponsored-placement schema/API groundwork. Delivery links are now mounted in the dish order summary and sponsored results are merged into match-reveal (integration pass, see below). **No subscriptions, payments, Stripe or ads — deliberately out of scope.** See "Phase 5 detail" below |
+| 4 — Retention loop | ✅ **done** — code, tests, AND integration all landed, only migration `0014` is pending user | Post-meal feedback, solo history + favourites, async rooms. UI/lib/tests landed AND the feedback prompt is mounted in the dish order summary. The two new tables are waiting on the SQL editor. See "Phase 4 detail" below. **If a resumed session is unsure whether this is done: it is. Don't redo it.** |
+| 5 — Monetization hooks | ✅ **done** — code, tests, AND integration all landed, only migration `0015` is pending user | Affiliate-ready delivery links + click tracking, and sponsored-placement schema/API groundwork. Delivery links are mounted in the dish order summary and sponsored results are merged into match-reveal (integration pass, see below). **No subscriptions, payments, Stripe or ads — deliberately out of scope.** See "Phase 5 detail" below. **If a resumed session is unsure whether this is done: it is. Don't redo it.** |
+| Design & assets | ⬜ not started, **next up** | Inserted ahead of deploy on 2026-08-15 — the app has been functionally complete through Phase 5 for a while but still looks like stock shadcn defaults on the original blueprint palette, never given real design attention. See "What's next" below |
 | 6 — Deploy & polish | ⬜ not started | Vercel, analytics, Lighthouse pass |
 
 **Post-Phase-3 hardening passes** (not numbered phases — corrective work driven by running the app for real):
@@ -37,6 +38,7 @@ Astro (React islands) + Tailwind v4 + Supabase (Postgres/Auth/Realtime) + Vercel
 | Security / abuse-resistance | ⏳ code+tests done, **migration `0013` pending user** | Adversarial pass over the RPCs, RLS, constraints, races and the public API routes. API-route fixes are live and verified; the schema half is written and waiting on the SQL editor. See "Security & abuse-resistance pass" below |
 | QA blocker fixes | ✅ done | Driven by running the app as two real users. Dietary-safe AI suggestions (the P0 — a halal room could be dealt an unvetted cuisine), the dish-deck rewire onto `/api/restaurant-menu`, and 9 smaller correctness/dead-end findings. New suite `scripts/test-dietary-safety.mjs` (39 assertions). See "QA blocker fixes" below |
 | Phase 4/5 integration | ✅ done | Three agents (QA fixes, Phase 4, Phase 5) worked in parallel on disjoint files and each left an explicit integration note for what they couldn't wire themselves. This pass did that wiring: `FeedbackPrompt` + `DeliveryOptions` mounted in `dish-swipe-area.tsx`'s order summary (only once `agreed.length > 0`); match-reveal's Phase-2-era manual-entry-only stub replaced with real `/api/find-restaurants` + on-tap geolocation, with `/api/sponsored-restaurants` merged in via `mergeSponsoredFirst()` exactly per the Phase 5 integration note. Also found and fixed in passing: `find-restaurants.ts` was inventing customer ratings (`4.1 + Math.random() * 0.8`) and presenting them as real — same class of fabrication as the old app's invented delivery prices; ratings are now `null` and the UI omits the field rather than lie with it. See "Integration pass" below |
+| Live multi-user testing | ✅ done | `scripts/playwright/` — real, watchable, independently-logged-in two-user browser testing (`npm run test:live`). First run succeeded end to end: two real logins, cross-user room join, Realtime waiting-room update with no reload, both swiped, both landed on the same match reveal. See "Live multi-user testing" below |
 
 ## Phase 2 detail — Swipe & matching core (done)
 
@@ -256,6 +258,17 @@ Three agents (QA blocker fixes, Phase 4, Phase 5) worked in this repo at the sam
 - **Verification:** `astro check` 0 errors, `npm run build` clean, `test-e2e.mjs` 129/129 (one run hit the pre-existing §12 Realtime flake, reproduced clean on retry), `test-dietary-safety.mjs` 39/39, `test-monetization.mjs` 75/93 (all 18 failures confirmed genuinely gated on `0015`, not masked by anything below).
 - **Environment hazard found during this verification, worth knowing for any future session on this machine:** `http://localhost:4321` intermittently resolved to a **completely unrelated app** ("TransferHub", a football-transfer news site) instead of this project's dev server — an IPv6/IPv4 loopback ambiguity, where `localhost` resolves to `::1` first and something else on this machine is bound there, while Astro's dev server (started with `--host`) binds the IPv4 `0.0.0.0`/`127.0.0.1`. Symptom looked exactly like a real bug (real 404s, real HTML back from the wrong site) until the response body was actually read. **Always invoke this project's test scripts with `APP_BASE_URL=http://127.0.0.1:4321` explicitly** rather than relying on the `localhost` default, on this machine at least.
 
+## Live multi-user testing (Playwright)
+
+`scripts/playwright/` — real, watchable, genuinely-independent two-user browser testing, added 2026-08-15 because the in-app Browser pane tool shares one cookie jar across every tab it opens and can therefore never hold two different logged-in users at once, which is exactly what a room/swipe/match app needs to test for real. Playwright browser *contexts* are fully isolated (separate cookies/localStorage/IndexedDB), so N real independent logins run side by side in one process. There's no shared display to stream to in this environment, so "live" means: act → screenshot the session → look at the PNG → next action.
+
+- **`multi-session.mjs`** — the reusable driver: `openSession(label)` (new isolated context + page + a `.shot(step)` helper), `login(session, email, password)` (drives the *real* login form — click, type, submit, exactly what a human does; this is why it can fill fields the other browser tool's programmatic `form_input` could not, per the QA-pass lesson recorded elsewhere in this file), `closeAll()`, `BASE_URL` (defaults to `http://127.0.0.1:4321` — never `localhost`, see the loopback-ambiguity note above).
+- **`demo-two-user-match.mjs`** — the first scenario: two real logins → Ava hosts a room → Ben joins by typing the code → Ava's waiting-room view is screenshotted updating live (no reload) the moment Ben joins → both navigate to the swipe deck → both swipe right on the real UI (via the app's own hidden gesture-proxy button, `#cuisine-swipe-right-btn`) until Realtime delivers a match to both → both landed on `/match/french?room=<code>` on the **first run**, no fixes needed.
+- Screenshots land in `scripts/playwright/screenshots/` (gitignored, regenerated every run — not build output).
+- Run: `npm run test:live`, or `node --env-file=.env scripts/playwright/demo-two-user-match.mjs` directly.
+- **Found while building this:** neither swipe button (`X` / `Heart` in `swipe-area.tsx`) has an `aria-label` — icon-only, no accessible name for a screen reader. Not fixed (out of scope for a testing tool), flagged for the design/accessibility pass that's next.
+- Full usage notes and the pattern for writing a new scenario: `scripts/playwright/README.md`.
+
 ## Key engineering patterns established (reuse, don't reinvent)
 
 - **RLS recursion**: any policy that needs to check "is this user a participant of room X" should call the existing `is_room_participant()` SECURITY DEFINER function, not write a fresh self-join policy.
@@ -345,9 +358,17 @@ An adversarial pass over the backend, run as four real users through the anon ke
 
 **When re-running any of the HTTP-hitting suites above** (`test-dietary-safety.mjs`, `test-monetization.mjs`, or anything else that talks to the dev server), invoke with `APP_BASE_URL=http://127.0.0.1:4321` explicitly — see "Integration pass" above for why `localhost:4321` is not reliable on this machine.
 
+## What's next (as of 2026-08-15)
+
+**Design & assets phase.** Everything through Phase 5 is functionally complete and tested (live-verified with two real users, see "Live multi-user testing" above) — the app works. It has never had real design attention: it's stock shadcn components on the original blueprint's palette (salmon `#FFB3B3` / peach `#FFDAB9` / Belleza+Alegreya fonts), placeholder emoji instead of real cuisine/dish artwork, no illustration or photography treatment, and at least one known accessibility gap (swipe buttons have no `aria-label`). This is the next thing to work on — not another feature phase, not Phase 6 deploy yet.
+
+**Do NOT rebuild Phase 4 or Phase 5.** Both are done — code, tests, and integration all landed (see the phase table above, marked in bold). The only thing pending on either is the user running their migration file in the Supabase SQL editor (`0014`, `0015`) — that's a manual step for the user, not remaining engineering work. If you're resuming this project cold and it looks like Phase 4/5 "isn't wired up yet," re-read this file before concluding that — check git log and the actual component files first.
+
 ## How to resume after a context clear
 
 1. Read this file fully.
 2. Check `git log --oneline` in `C:\Antigravity Projects\foodswipe-astro` to confirm the phase table above still matches reality (it should, but verify — this file is a snapshot, not a live source).
-3. Pick up at the first `⏳`/`⬜` phase.
-4. Update this file's phase table, schema list, and any new patterns/decisions *before* ending the session or moving to the next phase.
+3. Check whether the dev server is running (`npx astro dev status`) and whether `supabase/migrations/0013`, `0014`, `0015` have been applied yet (ask the user, or probe with `node --env-file=.env scripts/test-security.mjs` / `test-retention.mjs` / `test-monetization.mjs` — each prints a clear `[needs 00xx]` banner if its migration is still pending).
+4. Pick up at "Design & assets" (see "What's next" above) unless the user says otherwise.
+5. To see the app actually working with two users before touching anything, run `npm run test:live` (see "Live multi-user testing" above) — faster than re-deriving whether a given flow works from reading code.
+6. Update this file's phase table, schema list, and any new patterns/decisions *before* ending the session or moving to the next phase.
