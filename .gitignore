@@ -31,6 +31,9 @@ Thumbs.db
 # vercel
 .vercel/
 
+# Claude Code local-machine settings (hooks, personal overrides) -- not shared
+.claude/settings.local.json
+
 # playwright live-demo screenshots -- regenerated every run, not build artifacts
 scripts/playwright/screenshots/
 test-results/
