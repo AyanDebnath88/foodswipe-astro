@@ -14,8 +14,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fetchRoomByCode, type RoomState } from "@/lib/rooms";
 import { CUISINE_EMOJI } from "@/lib/cuisines";
+import { fetchSubcuisines } from "@/lib/subcuisine";
 import { mergeSponsoredFirst, type SponsoredRestaurant } from "@/lib/sponsored";
 import type { Restaurant } from "@/pages/api/find-restaurants";
+
+// Cuisines with enough real internal breadth to get a second narrowing
+// swipe layer before restaurant discovery (0017_indian_subcuisines.sql).
+// A set, not a boolean flag on the cuisine row, so adding a second one later
+// (e.g. Chinese regional cuisines) is a one-line change here plus a new
+// cuisine_subcategories seed -- no schema change needed.
+const CUISINES_WITH_REFINE_LAYER = new Set(["indian"]);
 
 interface MatchRevealProps {
   cuisineId: string;
@@ -58,8 +66,37 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [places, setPlaces] = useState<Array<SponsoredRestaurant | Restaurant>>([]);
   const [resultSource, setResultSource] = useState<string | null>(null);
+  const [subcuisineName, setSubcuisineName] = useState<string | null>(null);
+  // Client-only: read once on mount, not from Astro props, since this is the
+  // one-tab "I gave up waiting for consensus" bypass set by
+  // subcuisine-swipe-area.tsx's skip links -- it deliberately does not touch
+  // the room's real matched_subcuisine_id, so it must not be treated as
+  // server truth anywhere else this component reasons about the room.
+  const [skipRefine, setSkipRefine] = useState(false);
   const emoji = CUISINE_EMOJI[cuisineId] ?? "🍽️";
   const cuisineName = titleCase(cuisineId.replace(/^ai-/, "").replace(/-/g, " "));
+  const needsRefine = CUISINES_WITH_REFINE_LAYER.has(cuisineId);
+
+  useEffect(() => {
+    setSkipRefine(new URLSearchParams(window.location.search).get("skipRefine") === "1");
+  }, []);
+
+  // Resolve the matched subcategory's real display name (e.g. "Street Food
+  // & Chaat") from its id (e.g. "indian-street-food") -- the id alone isn't
+  // presentable, and titleCase()'s cuisine-id-shaped stripping can't recover
+  // names with "&" in them.
+  useEffect(() => {
+    if (!needsRefine || !room?.matchedSubcuisineId) return;
+    let cancelled = false;
+    fetchSubcuisines(cuisineId).then((subs) => {
+      if (cancelled) return;
+      const match = subs.find((s) => s.id === room.matchedSubcuisineId);
+      if (match) setSubcuisineName(match.name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [needsRefine, cuisineId, room?.matchedSubcuisineId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,10 +157,15 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         try {
+          // Prefer the narrowed-down subcategory name when one was agreed on
+          // (e.g. "Hyderabadi" beats generic "Indian" for restaurant search
+          // relevance) -- this is the product payoff of the refine layer,
+          // not just a UX detour.
+          const searchTerm = subcuisineName ?? cuisineName;
           const res = await fetch("/api/find-restaurants", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cuisine: cuisineName, latitude, longitude }),
+            body: JSON.stringify({ cuisine: searchTerm, latitude, longitude }),
           });
           if (res.status === 429) {
             setLocationError("Too many searches at once. Give it a few seconds and try again.");
@@ -265,10 +307,43 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
         )}
       </div>
 
+      {/*
+        Refine layer gate (0017_indian_subcuisines.sql): a cuisine with real
+        internal breadth gets one more swipe before restaurant discovery.
+        Bypassed once matched_subcuisine_id is set (server verdict, applies
+        to the whole room) OR once this tab's own ?skipRefine=1 bypass is
+        present (personal, not synced -- see the skipRefine state comment).
+      */}
+      {needsRefine && !room?.matchedSubcuisineId && !skipRefine ? (
+        <div className="rounded-2xl border-2 border-primary/30 bg-card/60 backdrop-blur-md p-8 text-center max-w-md mx-auto">
+          <p className="font-body text-muted-foreground mb-6">
+            India's got a lot of ground to cover. Swipe on the regional styles your group is up for, and
+            we'll find you real spots for exactly that.
+          </p>
+          <Button asChild className="h-12 rounded-2xl px-8">
+            <a href={`/match/${cuisineId}/refine?room=${roomCode}`}>Let's narrow it down</a>
+          </Button>
+          <div className="mt-3">
+            <a
+              href={`/match/${cuisineId}?room=${roomCode}&skipRefine=1`}
+              className="font-body text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Skip -- just show me {cuisineName} restaurants
+            </a>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="mb-8">
         <h2 className="text-2xl md:text-3xl font-headline">
-          Here are some great <span className="capitalize">{cuisineName}</span> spots nearby:
+          Here are some great{" "}
+          <span className="capitalize">{subcuisineName ?? cuisineName}</span> spots nearby:
         </h2>
+        {subcuisineName && (
+          <p className="font-body text-sm text-muted-foreground mt-1">
+            Narrowed down from {cuisineName} to {subcuisineName} by your group.
+          </p>
+        )}
       </div>
 
       {/*
@@ -404,6 +479,8 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
           <a href={`/swipe?room=${roomCode}`}>Back to the room</a>
         </Button>
       </form>
+        </>
+      )}
     </div>
   );
 }

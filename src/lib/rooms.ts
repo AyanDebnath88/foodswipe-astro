@@ -26,6 +26,15 @@ export interface RoomState {
   creatorId: string | null;
   status: RoomStatus;
   matchedCuisineId: string | null;
+  /**
+   * Set only for rooms that matched on a cuisine with a refine layer (today:
+   * 'indian' -- see supabase/migrations/0017_indian_subcuisines.sql) AND have
+   * gone through it. Null for every other room, forever. check_subcuisine_
+   * match() is the only thing that ever sets it; this is a read reflecting
+   * that server verdict, same relationship matchedCuisineId has to
+   * check_swipe_match().
+   */
+  matchedSubcuisineId: string | null;
 }
 
 export interface Participant {
@@ -101,13 +110,14 @@ function mapRoomRow(row: Record<string, unknown>): RoomState {
     creatorId: (row.creator_id as string | null) ?? null,
     status: row.status as RoomStatus,
     matchedCuisineId: (row.matched_cuisine_id as string | null) ?? null,
+    matchedSubcuisineId: (row.matched_subcuisine_id as string | null) ?? null,
   };
 }
 
 // matched_restaurant_name / matched_dish_name are intentionally NOT selected
 // any more -- see the RoomStatus comment above. The agreed-dish list comes
 // from the dish_matches table (src/lib/dish-matches.ts).
-const ROOM_COLUMNS = "id, code, creator_id, status, matched_cuisine_id";
+const ROOM_COLUMNS = "id, code, creator_id, status, matched_cuisine_id, matched_subcuisine_id";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -294,6 +304,13 @@ export interface RoomRealtimeHandlers {
   onSessionDeleted?: () => void;
   onParticipantsChange?: () => void;
   onSwipeChange?: () => void;
+  /**
+   * Live vote progress on the Indian refine layer (0017). The match result
+   * itself (matched_subcuisine_id) arrives through onSessionChange like any
+   * other swipe_sessions column -- this is only for "X of Y voted" style UI
+   * while that vote is still in progress.
+   */
+  onSubcuisineSwipeChange?: () => void;
   onDishSwipeChange?: () => void;
   /**
    * A new dish just reached unanimity (an INSERT into dish_matches by the
@@ -341,6 +358,11 @@ export function subscribeToRoom(roomId: string, handlers: RoomRealtimeHandlers):
       "postgres_changes",
       { event: "*", schema: "public", table: "swipes", filter: `session_id=eq.${roomId}` },
       () => handlers.onSwipeChange?.()
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "subcuisine_swipes", filter: `session_id=eq.${roomId}` },
+      () => handlers.onSubcuisineSwipeChange?.()
     )
     .on(
       "postgres_changes",

@@ -20,6 +20,129 @@ function full(subject) {
   return `${PREFIX} ${subject} ${SUFFIX}`;
 }
 
+// Indian refine-layer subcategories (0017_indian_subcuisines.sql). Ids and
+// dish lists here MUST match that migration exactly -- these become the
+// image paths src/lib/dish-images.ts (Phase C) will look up by id/slug.
+// Reuses the same `cuisines/<id>.jpg` and `dishes/<id>/<slug>.jpg`
+// conventions as the top-level 9 cuisines -- subcuisine ids (all
+// "indian-<region>") share the same namespace without colliding, so no new
+// top-level folder is needed.
+const subcuisineHeroes = {
+  "indian-north": "A rustic thali spread with paneer butter masala, dal, and buttered roti, evoking a North Indian home-style meal, steam rising.",
+  "indian-south": "A banana-leaf-style spread of dosa, sambar, and coconut chutney, evoking a South Indian breakfast table.",
+  "indian-mughlai": "A regal plate of mutton korma with saffron rice, rich glossy gravy, evoking Mughlai royal-kitchen dining.",
+  "indian-biryani": "A large handi of dum biryani opened to reveal layered saffron rice and tender meat, steam escaping.",
+  "indian-bengali": "A Bengali thali with fish curry, rice, and a small bowl of mishti doi, evoking a Bengali home meal.",
+  "indian-gujarati": "A Gujarati thali platter with dhokla, kadhi, and thepla, evoking a vibrant vegetarian spread.",
+  "indian-rajasthani": "A rustic Rajasthani thali with dal baati churma, evoking a desert-region feast.",
+  "indian-street-food": "A vibrant street-food spread of pani puri and pav bhaji on a stainless steel plate, evoking Indian street food stalls.",
+  "indian-tandoor": "A sizzling platter of assorted tandoori kebabs fresh off the grill, char marks visible, smoke rising.",
+  "indian-hyderabadi": "A steaming plate of Hyderabadi haleem alongside a plate of biryani, evoking Hyderabad's Nizami cuisine.",
+};
+
+const subcuisineDishes = {
+  "indian-north": [
+    ["Paneer Butter Masala", "A bowl of paneer butter masala, glossy orange-red tomato-butter gravy, soft paneer cubes, a swirl of cream on top."],
+    ["Rajma Chawal", "A plate of rajma chawal, red kidney bean curry ladled over steamed rice, a wedge of lemon and onion rings beside it."],
+    ["Amritsari Kulcha", "A stuffed Amritsari kulcha cut open showing a spiced potato filling, golden char spots, a dollop of butter melting on top."],
+    ["Sarson ka Saag with Makki Roti", "A bowl of sarson ka saag with a knob of butter melting on top, a makki roti and a small bowl of jaggery beside it."],
+    ["Malai Kofta", "A bowl of malai kofta, soft fried dumplings in a creamy orange gravy, a swirl of cream and chopped coriander on top."],
+    ["Kadhai Paneer", "A sizzling kadhai of paneer with bell peppers in a thick tomato-onion masala, fresh coriander scattered on top."],
+    ["Aloo Paratha", "A golden aloo paratha cut open showing a spiced potato filling, a dollop of butter melting on top, a small bowl of curd and pickle beside it."],
+    ["Paneer Tikka", "Skewers of grilled paneer tikka with charred edges and bell peppers, a mint chutney dip and lemon wedge beside them."],
+  ],
+  "indian-south": [
+    ["Uttapam", "A thick uttapam pancake topped with chopped onion, tomato, and coriander, a small bowl of coconut chutney beside it."],
+    ["Rava Dosa", "A lacy, crisp rava dosa folded on a plate, visible golden lattice texture, sambar and chutney in small bowls beside it."],
+    ["Medu Vada", "A stack of golden medu vada donuts, crisp exterior, a small bowl of coconut chutney and sambar beside them."],
+    ["Pongal", "A bowl of ven pongal, soft rice-lentil porridge topped with cashews and a drizzle of ghee, black pepper visible."],
+    ["Chettinad Chicken Curry", "A bowl of Chettinad chicken curry, dark spiced gravy with visible curry leaves and whole spices, steam rising."],
+    ["Appam with Stew", "A lacy bowl-shaped appam beside a small bowl of creamy coconut vegetable stew."],
+    ["Rasam Rice", "A bowl of rasam poured over steamed rice, visible tamarind broth with curry leaves and mustard seeds floating on top."],
+    ["Curd Rice", "A bowl of curd rice tempered with mustard seeds, curry leaves, and pomegranate seeds scattered on top."],
+  ],
+  "indian-mughlai": [
+    ["Mutton Korma", "A bowl of mutton korma, rich glossy brown gravy with tender meat, fried onions and coriander scattered on top."],
+    ["Shahi Paneer", "A bowl of shahi paneer, creamy cashew-based orange gravy with soft paneer cubes, a swirl of cream on top."],
+    ["Nihari", "A bowl of nihari stew, deep reddish-brown slow-cooked meat gravy, a scatter of ginger julienne and coriander on top."],
+    ["Chicken Rezala", "A bowl of chicken rezala, pale creamy white gravy with visible whole spices, a hint of saffron color."],
+    ["Galouti Kebab", "A plate of soft galouti kebabs, delicately charred, resting on a thin roomali roti with mint chutney beside them."],
+    ["Nawabi Biryani", "A platter of nawabi biryani, layered saffron rice with tender meat, fried onions and boiled egg halves visible."],
+    ["Sheermal", "A golden saffron-tinted sheermal bread, slightly sweet crust, torn to reveal a soft interior, resting on a plate."],
+    ["Murgh Musallam", "A whole roasted murgh musallam chicken glazed in a rich spiced gravy, garnished with fried onions and boiled eggs."],
+  ],
+  "indian-biryani": [
+    ["Hyderabadi Chicken Biryani", "A plate of Hyderabadi chicken biryani, layered saffron rice with visible chicken pieces, fried onions, and a boiled egg half."],
+    ["Mutton Biryani", "A mound of mutton biryani, fragrant saffron rice with tender mutton pieces, mint leaves and fried onions scattered on top."],
+    ["Veg Dum Biryani", "A plate of vegetable dum biryani, colorful saffron rice with visible vegetables and paneer cubes, fried onions on top."],
+    ["Kolkata Biryani", "A plate of Kolkata-style biryani, saffron rice with a whole potato and egg visible, a lighter aromatic style."],
+    ["Lucknowi Biryani", "A plate of Lucknowi-style dum biryani, delicately layered rice with tender meat, subtle golden hue, fried onions on top."],
+    ["Ambur Biryani", "A plate of Ambur-style biryani, short-grain seeraga samba rice with meat pieces, a side of brinjal gravy and raita."],
+    ["Tehri", "A plate of tehri, turmeric-yellow vegetable rice with visible potato and pea pieces, a wedge of lemon beside it."],
+    ["Prawn Biryani", "A plate of prawn biryani, saffron rice with visible pink prawns, fried onions and coriander scattered on top."],
+  ],
+  "indian-bengali": [
+    ["Shorshe Ilish", "A piece of hilsa fish in a pungent yellow mustard gravy, mustard seeds visible, a green chili resting on top."],
+    ["Chingri Malai Curry", "A bowl of chingri malai curry, prawns in a rich coconut-cashew gravy, a light golden hue."],
+    ["Kosha Mangsho", "A bowl of kosha mangsho, dark slow-cooked mutton in a thick spiced gravy, glossy oil sheen on top."],
+    ["Aloo Posto", "A bowl of aloo posto, potatoes cooked in a poppy seed paste, a pale creamy texture with a green chili on top."],
+    ["Luchi with Aloo Dum", "Puffed golden luchi bread beside a bowl of spiced aloo dum, steam still rising from the potatoes."],
+    ["Fish Kabiraji", "A golden fish kabiraji cutlet coated in a fluffy egg-net batter, sliced open to show flaky fish inside."],
+    ["Cholar Dal", "A bowl of cholar dal, Bengal gram lentils with visible coconut slivers and raisins, a bay leaf resting on top."],
+    ["Mishti Doi", "A clay pot of mishti doi, set caramel-brown sweetened yogurt with a glossy surface, a spoon resting beside it."],
+  ],
+  "indian-gujarati": [
+    ["Dhokla", "A plate of steamed yellow dhokla squares, topped with mustard seeds, curry leaves, and grated coconut."],
+    ["Undhiyu", "A bowl of undhiyu, a mixed vegetable medley with visible surti beans and fenugreek dumplings, a rustic green-brown color."],
+    ["Khandvi", "Tightly rolled yellow khandvi spirals on a plate, garnished with mustard seeds and coriander."],
+    ["Gujarati Kadhi", "A bowl of Gujarati kadhi, pale yellow tangy-sweet yogurt curry, tempered with curry leaves and mustard seeds on top."],
+    ["Thepla", "A stack of folded thepla flatbreads, visible fenugreek flecks, a small bowl of pickle and curd beside them."],
+    ["Handvo", "A cut wedge of handvo, a savory lentil-rice cake with a crisp golden top studded with sesame seeds."],
+    ["Fafda with Jalebi", "Crisp golden fafda strips beside a coil of glistening orange jalebi, a small bowl of green chutney beside them."],
+    ["Gujarati Dal", "A bowl of Gujarati dal, a sweet-and-tangy yellow lentil soup, tempered with cumin and curry leaves on top."],
+  ],
+  "indian-rajasthani": [
+    ["Dal Baati Churma", "Round baked baati balls beside a bowl of dal and a mound of sweet churma, ghee glistening on top."],
+    ["Laal Maas", "A bowl of laal maas, fiery red Rajasthani mutton curry, glossy oil sheen with whole red chilies visible."],
+    ["Gatte ki Sabji", "A bowl of gatte ki sabji, gram-flour dumplings in a tangy yellow yogurt gravy, coriander scattered on top."],
+    ["Ker Sangri", "A bowl of ker sangri, a dry desert-bean and berry preparation, dark reddish-brown with visible whole spices."],
+    ["Pyaaz Kachori", "A golden fried pyaaz kachori cut open showing a spiced onion filling, flaky crisp layers visible."],
+    ["Mirchi Vada", "Golden fried mirchi vada, large stuffed chilies in a crisp gram-flour batter, a wedge of lemon beside them."],
+    ["Rajasthani Kadhi", "A bowl of Rajasthani kadhi, tangy yellow gravy with small pakoda fritters floating in it."],
+    ["Bajre ki Roti with Lehsun Chutney", "A round bajre ki roti with a knob of white butter melting on top, a small bowl of fiery red garlic chutney beside it."],
+  ],
+  "indian-street-food": [
+    ["Pani Puri", "A plate of crisp pani puri shells filled with spiced potato, one shell being filled with tangy tamarind water mid-pour."],
+    ["Pav Bhaji", "A sizzling plate of mashed pav bhaji topped with a knob of butter, toasted buttered pav buns and chopped onion beside it."],
+    ["Sev Puri", "A plate of sev puri, crisp puris topped with chutneys, chopped onion, and fine sev noodles scattered on top."],
+    ["Vada Pav", "A vada pav sandwich, a spiced potato fritter in a soft bun, green chutney visible at the edge, a fried green chili beside it."],
+    ["Bhel Puri", "A bowl of bhel puri, puffed rice tossed with tangy chutneys, sev, and chopped vegetables, coriander on top."],
+    ["Aloo Tikki Chaat", "A plate of aloo tikki chaat, crisp potato patties topped with yogurt, chutneys, and sev, coriander scattered on top."],
+    ["Dahi Puri", "A plate of dahi puri, crisp puris filled with potato and topped with whipped yogurt and tangy chutneys."],
+    ["Misal Pav", "A bowl of spicy misal curry topped with crunchy farsan, toasted pav buns and a lemon wedge beside it."],
+  ],
+  "indian-tandoor": [
+    ["Tandoori Chicken", "A plate of tandoori chicken, char-marked red-orange marinated pieces, a wedge of lemon and sliced onion beside them."],
+    ["Seekh Kebab", "Skewers of minced seekh kebab with visible char marks, resting on a bed of sliced onion, mint chutney beside them."],
+    ["Chicken Malai Tikka", "Skewers of pale creamy chicken malai tikka with light char marks, a mint chutney dip beside them."],
+    ["Hariyali Paneer Tikka", "Skewers of paneer tikka coated in a vibrant green herb marinade, char marks visible, bell peppers between the cubes."],
+    ["Reshmi Kebab", "Skewers of soft reshmi kebab, pale golden and lightly charred, resting on a plate with a lemon wedge."],
+    ["Tandoori Prawns", "Skewers of char-marked tandoori prawns, red-orange marinade visible, a wedge of lemon beside them."],
+    ["Mutton Seekh Kebab", "Skewers of mutton seekh kebab with a deep char, resting on sliced onion rings, mint chutney beside them."],
+    ["Fish Tikka", "Skewers of char-marked fish tikka chunks in a red marinade, a wedge of lemon and mint chutney beside them."],
+  ],
+  "indian-hyderabadi": [
+    ["Haleem", "A bowl of haleem, a thick shredded-meat and lentil porridge, garnished with fried onions, mint, and a wedge of lemon."],
+    ["Baghara Baingan", "A bowl of baghara baingan, whole baby eggplants in a peanut-sesame gravy, a rich brown-orange color."],
+    ["Mirchi ka Salan", "A bowl of mirchi ka salan, long green chilies in a tangy peanut-sesame gravy, glossy oil sheen on top."],
+    ["Double ka Meetha", "A dish of double ka meetha, golden fried bread slices soaked in sweetened milk, garnished with nuts and saffron strands."],
+    ["Hyderabadi Khichdi", "A bowl of Hyderabadi khichdi, soft rice-lentil mixture, a side of baghara baingan and boiled egg beside it."],
+    ["Bagara Rice", "A plate of bagara rice, fragrant tempered rice with whole spices and fried onions visible."],
+    ["Boti Kebab", "Skewers of boti kebab, tender char-marked meat chunks, resting on sliced onion, mint chutney beside them."],
+    ["Qubani ka Meetha", "A bowl of qubani ka meetha, glossy stewed apricots topped with a dollop of cream, garnished with almond slivers."],
+  ],
+};
+
 const heroes = {
   korean:
     "Bibimbap served in a hot sizzling stone bowl (dolsot) — rice, julienned vegetables, marinated beef, a fried egg on top, gochujang sauce, still sizzling with a wisp of steam. Shot from a 3/4 overhead angle with a couple of small banchan side dishes softly blurred in the background.",
@@ -157,7 +280,7 @@ const dishes = {
 // --- Build markdown -----------------------------------------------------
 let md = `# Food Swipe — Photography Asset Manifest (expanded, India-menu researched)
 
-99 images total: 9 cuisine hero shots + 90 dish shots (10 per cuisine — the original 5-dish catalog plus 5 more researched from what's actually served at Italian/Mexican/Japanese/Indian/Thai/Greek/French/Vietnamese/Korean restaurants in India today, via Zomato/Swiggy-adjacent sources and food-press coverage). Every prompt below is **complete and self-contained** — the style prefix and suffix are already baked into each one. Copy-paste a single cell straight into your image tool, nothing to assemble.
+189 images total: 9 cuisine hero shots + 90 dish shots (10 per cuisine, all nine cuisines) **plus** a dedicated Indian refine layer — 10 regional-style hero shots + 80 dish shots (8 per style: North, South, Mughlai, Biryani & Rice, Bengali, Gujarati, Rajasthani, Street Food & Chaat, Tandoor & Kebabs, Hyderabadi), researched against real Zomato/Swiggy category taxonomy and their most-ordered-dish data. Every prompt below is **complete and self-contained** — the style prefix and suffix are already baked into each one. Copy-paste a single cell straight into your image tool, nothing to assemble.
 
 ## Technical spec (every image)
 
@@ -193,12 +316,57 @@ for (const [cuisine, list] of Object.entries(dishes)) {
   md += `\n`;
 }
 
+md += `## Indian refine layer — regional style hero images (10) — \`cuisines/<subcuisine-id>.jpg\`
+
+After a room matches on Indian, they swipe once more on which regional style to narrow down to (supabase/migrations/0017_indian_subcuisines.sql) before restaurant discovery. These share the same \`cuisines/\` folder and file convention as the 9 top-level cuisine heroes above — the ids just happen to all start with \`indian-\`, so there's no separate folder to create.
+
+| Path | Prompt (complete — copy/paste as-is) |
+|---|---|
+`;
+
+for (const [id, subject] of Object.entries(subcuisineHeroes)) {
+  md += `| \`cuisines/${id}.jpg\` | ${full(subject)} |\n`;
+}
+
+md += `
+## Indian refine layer — dish images (80, 8 per style) — \`dishes/<subcuisine-id>/<slug>.jpg\`
+
+Same \`dishes/<id>/\` convention as the 9 top-level cuisines — \`<subcuisine-id>\` is e.g. \`indian-hyderabadi\`, a sibling folder to \`dishes/indian/\`, not nested inside it. None of these 80 dishes overlap with the 10 already in \`dishes/indian/\` (verified programmatically when this migration was written) — this is genuinely new content, not a re-shoot.
+
+`;
+
+for (const [subcuisine, list] of Object.entries(subcuisineDishes)) {
+  md += `### \`dishes/${subcuisine}/\`\n\n| Dish | Path | Prompt (complete — copy/paste as-is) |\n|---|---|---|\n`;
+  for (const [name, subject] of list) {
+    md += `| ${name} | \`${slugify(name)}.jpg\` | ${full(subject)} |\n`;
+  }
+  md += `\n`;
+}
+
 md += `## When done
 
-Drop all 99 files into the paths above, then let me know — I'll wire them into \`cuisine-card.tsx\`/\`dish-card.tsx\` with the Ken Burns motion treatment, build the \`dishName → catalog match → specific image, else cuisine hero\` fallback lookup, and verify live via the two-user harness before moving to the match-reveal celebration work.
+Drop all 189 files into the paths above, then let me know — I'll wire them into \`cuisine-card.tsx\`/\`dish-card.tsx\`/\`subcuisine-card.tsx\` with the Ken Burns motion treatment, build the \`dishName → catalog match → specific image, else cuisine hero\` fallback lookup, and verify live via the two-user harness before moving to the match-reveal celebration work.
 
-Migration \`supabase/migrations/0016_expand_cuisine_dishes.sql\` expands the \`cuisines.dishes\` catalog in Postgres to match this 10-per-cuisine list — run it in the SQL editor whenever convenient, independent of when the images land (the app already tolerates a dish string with no matching image, see the fallback rule above).
+Two migrations are pending, independent of when the images land (the app already tolerates a dish/subcuisine string with no matching image, see the fallback rule above):
+- \`supabase/migrations/0016_expand_cuisine_dishes.sql\` — expands \`cuisines.dishes\` to 10 per cuisine.
+- \`supabase/migrations/0017_indian_subcuisines.sql\` — adds the Indian refine layer (10 regional styles, 8 dishes each) and its matching mechanics.
 `;
+
+// Verify the "genuinely new content, not a re-shoot" claim made in the
+// manifest text above, rather than asserting it without checking.
+{
+  const flatIndian = new Set(dishes.indian.map(([name]) => name));
+  const subcuisineNames = Object.values(subcuisineDishes).flatMap((list) => list.map(([name]) => name));
+  const overlap = subcuisineNames.filter((n) => flatIndian.has(n));
+  if (overlap.length > 0) {
+    throw new Error(`Subcuisine dishes overlap with the flat indian.dishes catalog: ${overlap.join(", ")}`);
+  }
+  const dupWithinSubcuisines = subcuisineNames.length !== new Set(subcuisineNames).size;
+  if (dupWithinSubcuisines) {
+    throw new Error("Duplicate dish name across two different Indian subcuisines -- check subcuisineDishes.");
+  }
+  console.log(`Verified: ${subcuisineNames.length} subcuisine dishes, zero overlap with flat indian.dishes, zero internal duplicates.`);
+}
 
 mkdirSync("public/images", { recursive: true });
 writeFileSync("public/images/ASSET-PROMPTS.md", md, "utf-8");
