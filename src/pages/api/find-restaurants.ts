@@ -225,15 +225,20 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         void writeRestaurantCache(supabase, cuisine, places).catch((err) => {
           console.error("[find-restaurants] cache write failed:", err);
         });
-        const restaurants: Restaurant[] = places.map((p) => ({
-          name: p.name,
-          vicinity: p.address ?? `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`,
-          rating: p.rating,
-          reviewCount: p.reviewCount,
-          priceLevel: p.priceLevel,
-          menuPreview: [], // fresh from Google -- Track B enrichment hasn't run for this restaurant yet
-          website: p.website ?? p.mapsUrl,
-        }));
+        const restaurants: Restaurant[] = places
+          .map((p) => ({
+            name: p.name,
+            vicinity: p.address ?? `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`,
+            rating: p.rating,
+            reviewCount: p.reviewCount,
+            priceLevel: p.priceLevel,
+            menuPreview: [] as Restaurant["menuPreview"], // fresh from Google -- Track B enrichment hasn't run for this restaurant yet
+            website: p.website ?? p.mapsUrl,
+          }))
+          // Places' Text Search order is relevance, not rating -- sort by
+          // real rating (review count as tiebreaker) so "sorted by rank"
+          // holds regardless of source, same as the cache path already does.
+          .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1) || (b.reviewCount ?? 0) - (a.reviewCount ?? 0));
         return json({ restaurants, source: "google" });
       }
     } catch (err) {

@@ -19,6 +19,7 @@ import { CUISINE_EMOJI } from "@/lib/cuisines";
 import { fetchSubcuisines } from "@/lib/subcuisine";
 import { mergeSponsoredFirst, type SponsoredRestaurant } from "@/lib/sponsored";
 import { priceLevelToSymbol } from "@/lib/google-places";
+import { getCuisineHeroImage } from "@/lib/dish-images";
 import type { Restaurant } from "@/pages/api/find-restaurants";
 
 // Cuisines with enough real internal breadth to get a second narrowing
@@ -132,10 +133,12 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
     };
   }, [roomCode, cuisineId]);
 
-  const goToDishes = (name: string) => {
+  const goToDishes = (name: string, address?: string | null) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    window.location.href = `/match/${cuisineId}/${encodeURIComponent(trimmed)}?room=${roomCode}`;
+    let url = `/match/${cuisineId}/${encodeURIComponent(trimmed)}?room=${roomCode}`;
+    if (address) url += `&address=${encodeURIComponent(address)}`;
+    window.location.href = url;
   };
 
   const handleContinueToDishes = (e: React.FormEvent) => {
@@ -213,6 +216,21 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
       { timeout: 10000 }
     );
   };
+
+  // Auto-trigger the search the moment the group lands here needing it --
+  // requesting geolocation is still tied to this same real user action (the
+  // celebration reveal itself), not a bare page-load with nothing else
+  // happening, so this isn't the "unprompted dialog" case findNearby()'s own
+  // comment warns about; it's exactly the moment a location prompt is
+  // contextually expected. Guarded on locationStatus === "idle" so it fires
+  // exactly once, and only once the refine gate (if any) has cleared.
+  useEffect(() => {
+    if (roomState !== "ok") return;
+    if (needsRefine && !room?.matchedSubcuisineId && !skipRefine) return;
+    if (locationStatus !== "idle") return;
+    findNearby();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomState, needsRefine, room?.matchedSubcuisineId, skipRefine, locationStatus]);
 
   // Dead-end fix: this page used to render its full reveal + "type a
   // restaurant name" form even when the room didn't exist or the user wasn't
@@ -436,8 +454,29 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
             {places.map((place, i) => {
               const sponsored = "isSponsored" in place;
               const address = sponsored ? place.address : place.vicinity;
+              // No real per-restaurant photography exists yet (no such asset
+              // pipeline has ever been built for this app -- only cuisine
+              // and catalog-dish stock shots do). This is the honest
+              // fallback the user asked for: a real restaurant photo when
+              // one exists (nothing does today, so this branch is always
+              // the else for now, but the structure is ready the day one
+              // does), the cuisine's own hero shot otherwise -- never a
+              // blank/generic placeholder.
+              const cardImage = getCuisineHeroImage(cuisineId);
               return (
-                <Card key={`${place.name}-${i}`} className="p-5 flex flex-col">
+                <Card key={`${place.name}-${i}`} className="p-5 flex flex-col overflow-hidden">
+                  {cardImage && (
+                    <div className="-mx-5 -mt-5 mb-3 h-28 relative overflow-hidden">
+                      <img
+                        src={cardImage}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute inset-0 w-full h-full object-cover"
+                        draggable={false}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+                    </div>
+                  )}
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-headline text-lg leading-tight">{place.name}</h3>
                     {sponsored && <Badge variant="accent">{place.sponsorshipLabel}</Badge>}
@@ -494,7 +533,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                   )}
                   <div className="mt-4 flex flex-col gap-2">
                     <Button
-                      onClick={() => goToDishes(place.name)}
+                      onClick={() => goToDishes(place.name, address)}
                       className="w-full rounded-2xl h-10 text-sm"
                     >
                       Swipe dishes here

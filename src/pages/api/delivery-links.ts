@@ -75,9 +75,29 @@ function resolveRegion(latitude: number, longitude: number): Region {
   return "GLOBAL";
 }
 
-/** The plain, un-tagged search links. Affiliate decoration happens after. */
-function buildLinks(region: Region, restaurantName: string): Array<Omit<DeliveryLink, "affiliate">> {
-  const q = encodeURIComponent(restaurantName);
+/**
+ * The plain, un-tagged search links. Affiliate decoration happens after.
+ *
+ * `area` (optional) is the restaurant's own address/locality, when the
+ * caller has it (a real search result -- see [restaurant].astro's
+ * `?address=`). Folded into the query text so the delivery platform's OWN
+ * search is more likely to land on the right listing first, e.g. "Sorano
+ * Park Street Kolkata" resolves far more precisely than "Sorano" alone in a
+ * city with more than one restaurant by that name. This still can't
+ * guarantee landing directly on that restaurant's menu page -- that would
+ * need the platform's real listing id, which this app has no way to get
+ * without either their API (not available to us) or scraping their site
+ * (explicitly rejected on ToS/legal grounds, see clever-baking-map.md).
+ * It's a sharper search, not a direct link -- said plainly here rather than
+ * implied.
+ */
+function buildLinks(
+  region: Region,
+  restaurantName: string,
+  area?: string | null
+): Array<Omit<DeliveryLink, "affiliate">> {
+  const queryText = area ? `${restaurantName} ${area}` : restaurantName;
+  const q = encodeURIComponent(queryText);
 
   switch (region) {
     case "IN":
@@ -122,6 +142,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const restaurantName = cleanText(body.restaurantName, MAX_RESTAURANT_NAME);
+  const area = body.area != null ? cleanText(body.area, MAX_RESTAURANT_NAME) : null;
   const latitude = finiteNumber(body.latitude, -90, 90);
   const longitude = finiteNumber(body.longitude, -180, 180);
 
@@ -137,7 +158,7 @@ export const POST: APIRoute = async ({ request }) => {
   // Decorate per-link rather than per-region: affiliate programs are signed
   // up for one service at a time, so a region will routinely be a mix of
   // tagged and untagged links, and each one has to report its own truth.
-  const services: DeliveryLink[] = buildLinks(region, restaurantName).map((link) => {
+  const services: DeliveryLink[] = buildLinks(region, restaurantName, area).map((link) => {
     const decorated = decorateDeliveryUrl(link.serviceName, link.url);
     return { serviceName: link.serviceName, url: decorated.url, affiliate: decorated.affiliate };
   });

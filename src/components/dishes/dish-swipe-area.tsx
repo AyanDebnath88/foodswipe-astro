@@ -96,6 +96,8 @@ import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 interface DishSwipeAreaProps {
   cuisineId: string;
   restaurantName: string;
+  /** From the search result that led here, when there was one -- see [restaurant].astro. Sharpens the delivery-link search; never required. */
+  restaurantAddress?: string;
   roomCode: string;
 }
 
@@ -103,7 +105,7 @@ function dishIdFor(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
 }
 
-export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipeAreaProps) {
+export function DishSwipeArea({ cuisineId, restaurantName, restaurantAddress, roomCode }: DishSwipeAreaProps) {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomState | null>(null);
@@ -510,6 +512,7 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
           <div className="mt-6 text-left">
             <DeliveryOptions
               restaurantName={restaurantName}
+              restaurantAddress={restaurantAddress}
               sessionId={room?.id}
               cuisineId={cuisineId}
             />

@@ -10,6 +10,11 @@ import { Toaster } from "../../../components/ui/toaster";
 
 const { cuisine, restaurant } = Astro.params;
 const roomCode = Astro.url.searchParams.get("room");
+// Optional -- only present when the room reached this restaurant via a real
+// search result (match-reveal.tsx's goToDishes()), which knows the address.
+// The "type a restaurant name yourself" path has no address to carry, and
+// that's fine: delivery-links.ts's search just falls back to name-only.
+const restaurantAddress = Astro.url.searchParams.get("address");
 
 if (!cuisine || !restaurant || !roomCode || roomCode.trim().length !== 4) {
   return Astro.redirect("/rooms");
@@ -35,7 +40,13 @@ const restaurantName = decodeURIComponent(restaurant);
       </p>
     </div>
     <div class="w-full flex justify-center px-4">
-      <DishSwipeArea cuisineId={cuisine} restaurantName={restaurantName} roomCode={roomCode} client:load />
+      <DishSwipeArea
+        cuisineId={cuisine}
+        restaurantName={restaurantName}
+        restaurantAddress={restaurantAddress ?? undefined}
+        roomCode={roomCode}
+        client:load
+      />
     </div>
   </div>
   <Toaster client:load />

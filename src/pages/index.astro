@@ -40,6 +40,22 @@ const year = new Date().getFullYear();
     <!-- Static CSS-only background wash (see file header) -->
     <div class="pointer-events-none absolute inset-0 hero-gradient"></div>
 
+    <!--
+      Floating glass panels -- covers the full background, pure CSS (no
+      client:* directive, no <script>, keeping this page's zero-client-JS
+      invariant from the file header intact: true cursor-follow parallax
+      needs JS to track pointer position, so this delivers the glassmorphic
+      look and the "floating" motion via slow ambient drift instead, not
+      literal hover-tracking. `.animate-*` classes are the same
+      `prefers-reduced-motion` override every other animation in this app
+      already goes through (global.css) -- nothing extra needed here for that.
+    -->
+    <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      <div class="glass-panel glass-panel-a"></div>
+      <div class="glass-panel glass-panel-b"></div>
+      <div class="glass-panel glass-panel-c"></div>
+    </div>
+
     <div class="relative z-10 flex h-full flex-col">
       <header class="container mx-auto flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <a href="/" class="group flex items-center gap-2">
@@ -123,5 +139,59 @@ const year = new Date().getFullYear();
       radial-gradient(circle at 85% 15%, hsl(var(--accent) / 0.55), transparent 45%),
       radial-gradient(circle at 50% 85%, hsl(var(--secondary) / 0.35), transparent 50%),
       linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background)) 100%);
+  }
+
+  /*
+   * Glassmorphic floating panels: soft-edged, translucent, backdrop-blurred
+   * shapes drifting slowly behind the hero copy. Each one's own brand-token
+   * tint + a thin light-catching border-highlight is what reads as "glass"
+   * rather than just a blurred colour blob. Sized well past the viewport on
+   * every axis so the drift never reveals a hard edge.
+   */
+  .glass-panel {
+    position: absolute;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, hsl(var(--card) / 0.35), hsl(var(--card) / 0.08));
+    border: 1px solid hsl(var(--card) / 0.4);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    box-shadow: 0 8px 32px hsl(var(--foreground) / 0.06);
+  }
+  .glass-panel-a {
+    top: -15%;
+    left: -10%;
+    width: 55vw;
+    height: 55vw;
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.28), hsl(var(--card) / 0.05));
+    animation: glass-float-a 26s ease-in-out infinite alternate;
+  }
+  .glass-panel-b {
+    top: 30%;
+    right: -15%;
+    width: 45vw;
+    height: 45vw;
+    background: linear-gradient(135deg, hsl(var(--accent) / 0.3), hsl(var(--card) / 0.05));
+    animation: glass-float-b 32s ease-in-out infinite alternate;
+  }
+  .glass-panel-c {
+    bottom: -20%;
+    left: 20%;
+    width: 40vw;
+    height: 40vw;
+    background: linear-gradient(135deg, hsl(var(--secondary) / 0.26), hsl(var(--card) / 0.05));
+    animation: glass-float-c 22s ease-in-out infinite alternate;
+  }
+
+  @keyframes glass-float-a {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(4%, 6%) scale(1.08); }
+  }
+  @keyframes glass-float-b {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(-6%, 4%) scale(1.1); }
+  }
+  @keyframes glass-float-c {
+    from { transform: translate(0, 0) scale(1); }
+    to { transform: translate(5%, -5%) scale(1.06); }
   }
 </style>

@@ -9,14 +9,27 @@
 // never scans the filesystem itself (Astro ships static assets, it doesn't
 // read them back at runtime).
 //
-// Lookup follows the fallback rule the manifest was written against: a swiped
-// dish's name is looked up in the shot catalog first (dishName -> specific
-// photo); a generative-menu dish that isn't in the catalog still gets *a*
-// photo -- the matched cuisine's hero shot -- rather than falling through to
-// the caller's bare icon placeholder. Some catalog entries carry an
-// alternate/anglicized name in parens (e.g. "Goi Cuon (Spring Rolls)"); both
-// halves are indexed as aliases so either name a menu might use resolves to
-// the same photo.
+// THE MATCHING LOGIC, THREE PASSES, each only tried if the one before it
+// missed:
+//   1. Exact match (case/punctuation-insensitive) against the 170-dish
+//      catalog, including either half of a "Name (Alt Name)" entry.
+//   2. A small regional-synonym table (below) -- the same dish sometimes has
+//      a genuinely different name by region (Puchka = Pani Puri = Golgappa
+//      = Gupchup), which no amount of fuzzy text matching can bridge on its
+//      own since the words don't overlap at all.
+//   3. Word-overlap fuzzy match -- catches an AI-generated menu name that's
+//      a real catalog dish with extra words tacked on ("Spicy Butter
+//      Chicken Curry with Basmati Rice" still shares "butter"+"chicken"
+//      with catalog entry "Butter Chicken"). Requires most of the catalog
+//      dish's own words to be present, not just one word, specifically to
+//      avoid a generic single-word coincidence (matching everything
+//      described as a "curry" to one arbitrary curry photo).
+// If all three miss -- true for most restaurant-menu items, since a live
+// AI-generated menu produces far more variety than any fixed photo catalog
+// could ever cover -- the cuisine's hero shot is used instead of the bare
+// icon placeholder. That's real photography, honestly representing "this
+// cuisine," never a fabricated claim that a specific unphotographed dish
+// looks like whatever image happened to load.
 import data from "./dish-images.data.json";
 
 interface DishEntry {
@@ -36,11 +49,41 @@ function normalize(name: string): string {
     .trim();
 }
 
+const STOP_WORDS = new Set([
+  "with", "and", "the", "a", "an", "of", "in", "style", "special", "fresh",
+  "homemade", "traditional", "classic", "spicy", "mild", "creamy", "crispy",
+]);
+
+function significantWords(name: string): string[] {
+  return normalize(name)
+    .split(" ")
+    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+}
+
 const DISH_ALIAS_MAP: Map<string, string> = new Map();
+// name -> significant-word set, built once for the fuzzy pass.
+const DISH_WORDS: Array<{ path: string; words: Set<string> }> = [];
 for (const entry of DISH_DATA.dishes) {
   for (const alias of entry.aliases) {
     if (!DISH_ALIAS_MAP.has(alias)) DISH_ALIAS_MAP.set(alias, entry.path);
   }
+  DISH_WORDS.push({ path: entry.path, words: new Set(significantWords(entry.name)) });
+}
+
+// Regional/language name variants for the same dish -- deliberately short.
+// Add to this only for dishes actually seen colliding in practice (this
+// list started with exactly one entry, added after a live menu served
+// "Puchka" and the catalog only knows "Pani Puri"), not as a speculative
+// exhaustive synonym dictionary for every dish.
+const REGIONAL_SYNONYMS: Record<string, string> = {
+  puchka: "pani puri",
+  golgappa: "pani puri",
+  gupchup: "pani puri",
+  gol_gappe: "pani puri",
+};
+
+function applySynonyms(words: string[]): string[] {
+  return words.map((w) => REGIONAL_SYNONYMS[w]?.split(" ")[0] ?? w);
 }
 
 /** A cuisine or Indian-subcuisine hero photo, if one has been generated. */
@@ -50,12 +93,35 @@ export function getCuisineHeroImage(cuisineId: string): string | undefined {
 
 /**
  * The specific dish photo for `dishName` if it matches the shot catalog
- * (case/punctuation-insensitive), else the `cuisineId` hero shot as a
+ * (exact, then regional-synonym, then word-overlap fuzzy -- see this file's
+ * header for what each pass catches), else the `cuisineId` hero shot as a
  * stand-in, else undefined -- callers render their existing icon/emoji
  * placeholder in that last case.
  */
 export function getDishImage(dishName: string, cuisineId: string): string | undefined {
-  const hit = DISH_ALIAS_MAP.get(normalize(dishName));
-  if (hit) return hit;
+  const normalized = normalize(dishName);
+  const exact = DISH_ALIAS_MAP.get(normalized);
+  if (exact) return exact;
+
+  const queryWords = new Set(applySynonyms(significantWords(dishName)));
+  if (queryWords.size > 0) {
+    let best: { path: string; score: number } | null = null;
+    for (const candidate of DISH_WORDS) {
+      if (candidate.words.size === 0) continue;
+      let overlap = 0;
+      for (const w of candidate.words) if (queryWords.has(w)) overlap++;
+      // Require most of the CATALOG dish's words to show up in the query,
+      // not just one -- "chicken" alone matching a dozen different chicken
+      // dishes is exactly the false-positive this threshold exists to
+      // block (the same lesson from sorting ASSET-PROMPTS.md's photo drop
+      // earlier in this project).
+      const score = overlap / candidate.words.size;
+      if (score >= 0.75 && (!best || score > best.score)) {
+        best = { path: candidate.path, score };
+      }
+    }
+    if (best) return best.path;
+  }
+
   return getCuisineHeroImage(cuisineId);
 }

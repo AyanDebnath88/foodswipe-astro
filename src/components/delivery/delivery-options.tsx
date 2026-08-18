@@ -49,6 +49,8 @@ interface DeliveryLinksResponse {
 
 export interface DeliveryOptionsProps {
   restaurantName: string;
+  /** From a real search result, when there was one -- see [restaurant].astro. Sharpens the Zomato/Swiggy/etc search query so the platform's OWN search is more likely to land on the right listing first. Never guarantees landing directly on that restaurant's menu page -- this app has no way to know a restaurant's real Zomato/Swiggy listing id without either their API (not available to us) or scraping their site (explicitly rejected, see clever-baking-map.md). It's a better search, not a direct link. */
+  restaurantAddress?: string;
   /** Pass these when the page already knows them; otherwise the user is
    *  offered a "use my location" button rather than being geolocated
    *  unprompted. */
@@ -64,6 +66,7 @@ type Status = "idle" | "locating" | "loading" | "ready" | "error";
 
 export function DeliveryOptions({
   restaurantName,
+  restaurantAddress,
   latitude,
   longitude,
   sessionId,
@@ -83,7 +86,7 @@ export function DeliveryOptions({
         const res = await fetch("/api/delivery-links", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ restaurantName, latitude: lat, longitude: lon }),
+          body: JSON.stringify({ restaurantName, area: restaurantAddress, latitude: lat, longitude: lon }),
         });
         if (!res.ok) throw new Error(String(res.status));
         const body = (await res.json()) as DeliveryLinksResponse;
@@ -101,7 +104,7 @@ export function DeliveryOptions({
         setMessage("Couldn't load delivery options right now.");
       }
     },
-    [restaurantName]
+    [restaurantName, restaurantAddress]
   );
 
   useEffect(() => {
