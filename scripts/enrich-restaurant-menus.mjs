@@ -52,6 +52,11 @@ if (!GEMINI_API_KEY) {
 const LIMIT = Number(process.argv.find((a) => a.startsWith("--limit="))?.split("=")[1] ?? 15);
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_PAGE_TEXT_CHARS = 12000;
+// Gemini's free tier has a low requests-per-minute ceiling -- a first live
+// run against 9 restaurants hit a real 429 partway through. A few seconds
+// between restaurants keeps this comfortably under it without needing to
+// track/parse the actual quota response.
+const GEMINI_CALL_DELAY_MS = 4500;
 const MENU_PATH_CANDIDATES = ["/menu", "/menus", "/our-menu", "/food-menu", "/menu.html"];
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -270,8 +275,9 @@ async function main() {
   console.log(`Found ${pending.length} pending restaurant(s).`);
 
   const counts = { done: 0, no_menu_found: 0, skipped: 0 };
-  for (const r of pending) {
-    const outcome = await enrichOne(r);
+  for (let i = 0; i < pending.length; i++) {
+    if (i > 0) await new Promise((resolve) => setTimeout(resolve, GEMINI_CALL_DELAY_MS));
+    const outcome = await enrichOne(pending[i]);
     counts[outcome] += 1;
   }
 
