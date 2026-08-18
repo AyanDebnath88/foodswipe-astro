@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 
 import react from '@astrojs/react';
 import tailwindcss from '@tailwindcss/vite';
-import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
 
 // https://astro.build/config
 export default defineConfig({
@@ -17,5 +17,5 @@ export default defineConfig({
   // src/pages/auth/callback.astro) opt out per-page with
   // `export const prerender = false`, which is why an adapter is configured
   // here even though most routes remain static output.
-  adapter: node({ mode: 'standalone' }),
+  adapter: vercel(),
 });
