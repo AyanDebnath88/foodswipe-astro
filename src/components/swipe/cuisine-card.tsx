@@ -3,14 +3,21 @@
 // Ported from the reference Next.js project's
 // src/components/swipe/cuisine-card.tsx. Drag/pointer-capture mechanics and
 // the swipe-threshold logic are unchanged. Deviations:
-//   - next/image is replaced with a plain emoji + gradient tile (see
-//     src/lib/cuisines.ts's CUISINE_EMOJI comment for why: cuisine imagery
-//     was explicitly deferred to a later phase in 0002_seed_cuisines.sql).
+//   - next/image is replaced with a plain <img> against the editorial hero
+//     shot from public/images/cuisines/<id>.jpg (see src/lib/dish-images.ts),
+//     with a Ken Burns pan/zoom (src/styles/global.css) instead of Next's
+//     built-in image optimizer. Cuisine imagery was deferred at
+//     0002_seed_cuisines.sql time and has since landed (see
+//     public/images/ASSET-PROMPTS.md) -- the emoji is kept as a small badge
+//     rather than removed outright, since a handful of cuisine ids (mainly
+//     AI-suggested ones with no catalog row) still have no hero shot.
 //   - Cuisine type comes from src/lib/cuisines.ts (Supabase-backed) instead
 //     of the reference's static array; `description` is looked up from
 //     CUISINE_DESCRIPTIONS by id since it isn't part of the schema.
 import React, { useRef, useState } from "react";
 import { CUISINE_DESCRIPTIONS, CUISINE_EMOJI, type Cuisine } from "@/lib/cuisines";
+import { getCuisineHeroImage } from "@/lib/dish-images";
+import { Badge } from "@/components/ui/badge";
 
 const SWIPE_THRESHOLD = 100;
 
@@ -29,6 +36,8 @@ export function CuisineCard({ cuisine, onSwipe, isActive, zIndex }: CuisineCardP
 
   const emoji = CUISINE_EMOJI[cuisine.id] ?? "🍽️";
   const description = CUISINE_DESCRIPTIONS[cuisine.id];
+  const heroImage = getCuisineHeroImage(cuisine.id);
+  const kenBurnsVariant = cuisine.id.length % 2 === 0 ? "a" : "b";
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isActive) return;
@@ -84,23 +93,30 @@ export function CuisineCard({ cuisine, onSwipe, isActive, zIndex }: CuisineCardP
       } ${animationClass}`}
     >
       <div className="relative w-full h-full flex flex-col">
-        <div className="flex-1 flex items-center justify-center select-none">
-          <span className="text-[7rem] drop-shadow-lg" aria-hidden="true">
-            {emoji}
-          </span>
-        </div>
+        {heroImage ? (
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute inset-0 w-full h-full object-cover animate-ken-burns-${kenBurnsVariant}`}
+            draggable={false}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center select-none">
+            <span className="text-[7rem] drop-shadow-lg" aria-hidden="true">
+              {emoji}
+            </span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
           <h2 className="text-3xl font-headline font-bold">{cuisine.name}</h2>
           {description && <p className="mt-2 text-white/90 text-sm">{description}</p>}
           <div className="mt-4 flex flex-wrap gap-2">
             {cuisine.dishes.slice(0, 5).map((dish) => (
-              <span
-                key={dish}
-                className="text-xs bg-white/20 text-white backdrop-blur-sm border-0 rounded-full px-2.5 py-1"
-              >
+              <Badge key={dish} variant="outline">
                 {dish}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>

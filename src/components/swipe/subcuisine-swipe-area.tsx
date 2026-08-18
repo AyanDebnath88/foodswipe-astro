@@ -26,6 +26,7 @@ import { fetchRoomByCode, fetchRoomParticipants, subscribeToRoom, saveActiveRoom
 import { getCurrentUser } from "@/lib/guest-auth";
 import { errorMessage } from "@/lib/errors";
 import { currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
+import { shuffle } from "@/lib/utils";
 
 interface SubcuisineSwipeAreaProps {
   cuisineId: string;
@@ -87,9 +88,12 @@ export function SubcuisineSwipeArea({ cuisineId, roomCode }: SubcuisineSwipeArea
       ]);
       if (cancelled) return;
 
+      // Shuffled per user, per open -- same reasoning as the cuisine/dish
+      // decks (src/lib/utils.ts's shuffle()).
+      const shuffledDeck = shuffle(subcuisines);
       setParticipants(roomParticipants);
-      setDeck(subcuisines);
-      await refreshVotes(roomState.id, subcuisines[0]?.id);
+      setDeck(shuffledDeck);
+      await refreshVotes(roomState.id, shuffledDeck[0]?.id);
       setLoading(false);
     })();
     return () => {

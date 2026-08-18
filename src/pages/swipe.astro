@@ -28,13 +28,13 @@ if (!roomCode || roomCode.trim().length !== 4) {
 <BaseLayout title={`Swipe · Room ${roomCode}`} description="Swipe on cuisines with your group.">
   <AppHeader roomCode={roomCode} />
   <div class="flex flex-col items-center w-full min-h-screen pt-10 pb-8 bg-background">
-    <div class="text-center mb-8 px-4">
+    <div class="text-center mb-8 px-4 animate-page-load" style="--stagger-delay: 0s">
       <h1 class="text-3xl md:text-4xl font-headline">Craving Match: Room {roomCode}</h1>
       <p class="text-muted-foreground mt-2">
         Swipe right for YES! As soon as everyone in the room likes a cuisine, it's a MATCH!
       </p>
     </div>
-    <div class="w-full flex justify-center px-4">
+    <div class="w-full flex justify-center px-4 animate-page-load" style="--stagger-delay: 0.15s">
       <SwipeArea roomCode={roomCode} client:load />
     </div>
   </div>

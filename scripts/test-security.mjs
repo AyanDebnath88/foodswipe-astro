@@ -753,23 +753,9 @@ async function main() {
         `built a ${encodedLen}-char URL from it`
       );
 
-      // Unbounded arrays into a Gemini prompt. Kept just under the 16 KB body
-      // cap on purpose -- an oversized body is already covered above, and the
-      // point here is the ITEM count, which used to be unlimited within a
-      // perfectly ordinary-sized request.
-      const bigArrays = await post("/api/suggest-cuisines", {
-        likedCuisines: Array.from({ length: 600 }, (_, i) => `Cuisine ${i}`),
-        dislikedCuisines: [],
-        numberOfSuggestions: 3,
-      });
-      assertEq("a 600-item likedCuisines array is accepted", bigArrays.status, 200);
-      assert(
-        "...and still answers within contract (array was capped, not forwarded whole)",
-        Array.isArray(bigArrays.json?.suggestedCuisines) && bigArrays.json.suggestedCuisines.length <= 3,
-        JSON.stringify(bigArrays.json)?.slice(0, 200)
-      );
-      const oversizedOut = (bigArrays.json?.suggestedCuisines ?? []).some((c) => typeof c !== "string" || c.length > 40);
-      assert("...and every returned cuisine name is bounded", !oversizedOut);
+      // The oversized-likedCuisines-array check used to live here, against
+      // /api/suggest-cuisines -- removed along with the AI "suggest more
+      // cuisines" feature (that endpoint no longer exists).
     }
   }
 
@@ -805,7 +791,6 @@ async function main() {
       (await post("/api/find-restaurants", { cuisine: "indian", latitude: 22.49, longitude: 88.39 })).text,
       (await post("/api/find-restaurants", { cuisine: "indian" })).text,
       (await post("/api/restaurant-menu", { restaurantName: "", cuisine: "" })).text,
-      (await post("/api/suggest-cuisines", { likedCuisines: "not-an-array" })).text,
       (await post("/api/delivery-links", "%%%", { raw: true })).text,
     ];
     let leaked = null;

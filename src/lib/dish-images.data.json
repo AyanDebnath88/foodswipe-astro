@@ -1,0 +1,1162 @@
+{
+  "dishes": [
+    {
+      "path": "/images/dishes/french/boeuf-bourguignon.jpg",
+      "name": "Boeuf Bourguignon",
+      "aliases": [
+        "boeuf bourguignon"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/chocolate-eclair.jpg",
+      "name": "Chocolate Eclair",
+      "aliases": [
+        "chocolate eclair"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/coq-au-vin.jpg",
+      "name": "Coq au Vin",
+      "aliases": [
+        "coq au vin"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/creme-brulee.jpg",
+      "name": "Creme Brulee",
+      "aliases": [
+        "creme brulee"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/croque-monsieur.jpg",
+      "name": "Croque Monsieur",
+      "aliases": [
+        "croque monsieur"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/french-onion-soup.jpg",
+      "name": "French Onion Soup",
+      "aliases": [
+        "french onion soup"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/macarons.jpg",
+      "name": "Macarons",
+      "aliases": [
+        "macarons"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/quiche-lorraine.jpg",
+      "name": "Quiche Lorraine",
+      "aliases": [
+        "quiche lorraine"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/ratatouille.jpg",
+      "name": "Ratatouille",
+      "aliases": [
+        "ratatouille"
+      ]
+    },
+    {
+      "path": "/images/dishes/french/souffle.jpg",
+      "name": "Souffle",
+      "aliases": [
+        "souffle"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/baklava.jpg",
+      "name": "Baklava",
+      "aliases": [
+        "baklava"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/dolmades.jpg",
+      "name": "Dolmades",
+      "aliases": [
+        "dolmades"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/greek-salad.jpg",
+      "name": "Greek Salad",
+      "aliases": [
+        "greek salad"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/gyro.jpg",
+      "name": "Gyro",
+      "aliases": [
+        "gyro"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/hummus-with-pita.jpg",
+      "name": "Hummus with Pita",
+      "aliases": [
+        "hummus with pita"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/loukoumades.jpg",
+      "name": "Loukoumades",
+      "aliases": [
+        "loukoumades"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/moussaka.jpg",
+      "name": "Moussaka",
+      "aliases": [
+        "moussaka"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/souvlaki.jpg",
+      "name": "Souvlaki",
+      "aliases": [
+        "souvlaki"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/spanakopita.jpg",
+      "name": "Spanakopita",
+      "aliases": [
+        "spanakopita"
+      ]
+    },
+    {
+      "path": "/images/dishes/greek/tzatziki-dip.jpg",
+      "name": "Tzatziki Dip",
+      "aliases": [
+        "tzatziki dip"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian/biryani.jpg",
+      "name": "Biryani",
+      "aliases": [
+        "biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/aloo-posto.jpg",
+      "name": "Aloo Posto",
+      "aliases": [
+        "aloo posto"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/chingri-malai-curry.jpg",
+      "name": "Chingri Malai Curry",
+      "aliases": [
+        "chingri malai curry"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/cholar-dal.jpg",
+      "name": "Cholar Dal",
+      "aliases": [
+        "cholar dal"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/fish-kabiraji.jpg",
+      "name": "Fish Kabiraji",
+      "aliases": [
+        "fish kabiraji"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/kosha-mangsho.jpg",
+      "name": "Kosha Mangsho",
+      "aliases": [
+        "kosha mangsho"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/luchi-with-aloo-dum.jpg",
+      "name": "Luchi with Aloo Dum",
+      "aliases": [
+        "luchi with aloo dum"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/mishti-doi.jpg",
+      "name": "Mishti Doi",
+      "aliases": [
+        "mishti doi"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-bengali/shorshe-ilish.jpg",
+      "name": "Shorshe Ilish",
+      "aliases": [
+        "shorshe ilish"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/ambur-biryani.jpg",
+      "name": "Ambur Biryani",
+      "aliases": [
+        "ambur biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/hyderabadi-chicken-biryani.jpg",
+      "name": "Hyderabadi Chicken Biryani",
+      "aliases": [
+        "hyderabadi chicken biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/kolkata-biryani.jpg",
+      "name": "Kolkata Biryani",
+      "aliases": [
+        "kolkata biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/lucknowi-biryani.jpg",
+      "name": "Lucknowi Biryani",
+      "aliases": [
+        "lucknowi biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/mutton-biryani.jpg",
+      "name": "Mutton Biryani",
+      "aliases": [
+        "mutton biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/prawn-biryani.jpg",
+      "name": "Prawn Biryani",
+      "aliases": [
+        "prawn biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/tehri.jpg",
+      "name": "Tehri",
+      "aliases": [
+        "tehri"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-biryani/veg-dum-biryani.jpg",
+      "name": "Veg Dum Biryani",
+      "aliases": [
+        "veg dum biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/dhokla.jpg",
+      "name": "Dhokla",
+      "aliases": [
+        "dhokla"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/fafda-with-jalebi.jpg",
+      "name": "Fafda with Jalebi",
+      "aliases": [
+        "fafda with jalebi"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/gujarati-dal.jpg",
+      "name": "Gujarati Dal",
+      "aliases": [
+        "gujarati dal"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/gujarati-kadhi.jpg",
+      "name": "Gujarati Kadhi",
+      "aliases": [
+        "gujarati kadhi"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/handvo.jpg",
+      "name": "Handvo",
+      "aliases": [
+        "handvo"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/khandvi.jpg",
+      "name": "Khandvi",
+      "aliases": [
+        "khandvi"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/thepla.jpg",
+      "name": "Thepla",
+      "aliases": [
+        "thepla"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-gujarati/undhiyu.jpg",
+      "name": "Undhiyu",
+      "aliases": [
+        "undhiyu"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/bagara-rice.jpg",
+      "name": "Bagara Rice",
+      "aliases": [
+        "bagara rice"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/baghara-baingan.jpg",
+      "name": "Baghara Baingan",
+      "aliases": [
+        "baghara baingan"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/boti-kebab.jpg",
+      "name": "Boti Kebab",
+      "aliases": [
+        "boti kebab"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/double-ka-meetha.jpg",
+      "name": "Double ka Meetha",
+      "aliases": [
+        "double ka meetha"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/haleem.jpg",
+      "name": "Haleem",
+      "aliases": [
+        "haleem"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/hyderabadi-khichdi.jpg",
+      "name": "Hyderabadi Khichdi",
+      "aliases": [
+        "hyderabadi khichdi"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/mirchi-ka-salan.jpg",
+      "name": "Mirchi ka Salan",
+      "aliases": [
+        "mirchi ka salan"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-hyderabadi/qubani-ka-meetha.jpg",
+      "name": "Qubani ka Meetha",
+      "aliases": [
+        "qubani ka meetha"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/chicken-rezala.jpg",
+      "name": "Chicken Rezala",
+      "aliases": [
+        "chicken rezala"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/galouti-kebab.jpg",
+      "name": "Galouti Kebab",
+      "aliases": [
+        "galouti kebab"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/murgh-musallam.jpg",
+      "name": "Murgh Musallam",
+      "aliases": [
+        "murgh musallam"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/mutton-korma.jpg",
+      "name": "Mutton Korma",
+      "aliases": [
+        "mutton korma"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/nawabi-biryani.jpg",
+      "name": "Nawabi Biryani",
+      "aliases": [
+        "nawabi biryani"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/nihari.jpg",
+      "name": "Nihari",
+      "aliases": [
+        "nihari"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/shahi-paneer.jpg",
+      "name": "Shahi Paneer",
+      "aliases": [
+        "shahi paneer"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-mughlai/sheermal.jpg",
+      "name": "Sheermal",
+      "aliases": [
+        "sheermal"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/aloo-paratha.jpg",
+      "name": "Aloo Paratha",
+      "aliases": [
+        "aloo paratha"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/amritsari-kulcha.jpg",
+      "name": "Amritsari Kulcha",
+      "aliases": [
+        "amritsari kulcha"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/kadhai-paneer.jpg",
+      "name": "Kadhai Paneer",
+      "aliases": [
+        "kadhai paneer"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/malai-kofta.jpg",
+      "name": "Malai Kofta",
+      "aliases": [
+        "malai kofta"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/paneer-butter-masala.jpg",
+      "name": "Paneer Butter Masala",
+      "aliases": [
+        "paneer butter masala"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/paneer-tikka.jpg",
+      "name": "Paneer Tikka",
+      "aliases": [
+        "paneer tikka"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/rajma-chawal.jpg",
+      "name": "Rajma Chawal",
+      "aliases": [
+        "rajma chawal"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-north/sarson-ka-saag-with-makki-roti.jpg",
+      "name": "Sarson ka Saag with Makki Roti",
+      "aliases": [
+        "sarson ka saag with makki roti"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/bajre-ki-roti-with-lehsun-chutney.jpg",
+      "name": "Bajre ki Roti with Lehsun Chutney",
+      "aliases": [
+        "bajre ki roti with lehsun chutney"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/dal-baati-churma.jpg",
+      "name": "Dal Baati Churma",
+      "aliases": [
+        "dal baati churma"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/gatte-ki-sabji.jpg",
+      "name": "Gatte ki Sabji",
+      "aliases": [
+        "gatte ki sabji"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/ker-sangri.jpg",
+      "name": "Ker Sangri",
+      "aliases": [
+        "ker sangri"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/laal-maas.jpg",
+      "name": "Laal Maas",
+      "aliases": [
+        "laal maas"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/mirchi-vada.jpg",
+      "name": "Mirchi Vada",
+      "aliases": [
+        "mirchi vada"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/pyaaz-kachori.jpg",
+      "name": "Pyaaz Kachori",
+      "aliases": [
+        "pyaaz kachori"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-rajasthani/rajasthani-kadhi.jpg",
+      "name": "Rajasthani Kadhi",
+      "aliases": [
+        "rajasthani kadhi"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/appam-with-stew.jpg",
+      "name": "Appam with Stew",
+      "aliases": [
+        "appam with stew"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/chettinad-chicken-curry.jpg",
+      "name": "Chettinad Chicken Curry",
+      "aliases": [
+        "chettinad chicken curry"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/curd-rice.jpg",
+      "name": "Curd Rice",
+      "aliases": [
+        "curd rice"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/medu-vada.jpg",
+      "name": "Medu Vada",
+      "aliases": [
+        "medu vada"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/pongal.jpg",
+      "name": "Pongal",
+      "aliases": [
+        "pongal"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/rasam-rice.jpg",
+      "name": "Rasam Rice",
+      "aliases": [
+        "rasam rice"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/rava-dosa.jpg",
+      "name": "Rava Dosa",
+      "aliases": [
+        "rava dosa"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-south/uttapam.jpg",
+      "name": "Uttapam",
+      "aliases": [
+        "uttapam"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/aloo-tikki-chaat.jpg",
+      "name": "Aloo Tikki Chaat",
+      "aliases": [
+        "aloo tikki chaat"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/bhel-puri.jpg",
+      "name": "Bhel Puri",
+      "aliases": [
+        "bhel puri"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/dahi-puri.jpg",
+      "name": "Dahi Puri",
+      "aliases": [
+        "dahi puri"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/misal-pav.jpg",
+      "name": "Misal Pav",
+      "aliases": [
+        "misal pav"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/pani-puri.jpg",
+      "name": "Pani Puri",
+      "aliases": [
+        "pani puri"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/pav-bhaji.jpg",
+      "name": "Pav Bhaji",
+      "aliases": [
+        "pav bhaji"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/sev-puri.jpg",
+      "name": "Sev Puri",
+      "aliases": [
+        "sev puri"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-street-food/vada-pav.jpg",
+      "name": "Vada Pav",
+      "aliases": [
+        "vada pav"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/chicken-malai-tikka.jpg",
+      "name": "Chicken Malai Tikka",
+      "aliases": [
+        "chicken malai tikka"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/fish-tikka.jpg",
+      "name": "Fish Tikka",
+      "aliases": [
+        "fish tikka"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/hariyali-paneer-tikka.jpg",
+      "name": "Hariyali Paneer Tikka",
+      "aliases": [
+        "hariyali paneer tikka"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/mutton-seekh-kebab.jpg",
+      "name": "Mutton Seekh Kebab",
+      "aliases": [
+        "mutton seekh kebab"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/reshmi-kebab.jpg",
+      "name": "Reshmi Kebab",
+      "aliases": [
+        "reshmi kebab"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/seekh-kebab.jpg",
+      "name": "Seekh Kebab",
+      "aliases": [
+        "seekh kebab"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/tandoori-chicken.jpg",
+      "name": "Tandoori Chicken",
+      "aliases": [
+        "tandoori chicken"
+      ]
+    },
+    {
+      "path": "/images/dishes/indian-tandoor/tandoori-prawns.jpg",
+      "name": "Tandoori Prawns",
+      "aliases": [
+        "tandoori prawns"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/carbonara.jpg",
+      "name": "Carbonara",
+      "aliases": [
+        "carbonara"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/fettuccine-alfredo.jpg",
+      "name": "Fettuccine Alfredo",
+      "aliases": [
+        "fettuccine alfredo"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/fusilli-pesto.jpg",
+      "name": "Fusilli Pesto",
+      "aliases": [
+        "fusilli pesto"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/garlic-bread-with-cheese.jpg",
+      "name": "Garlic Bread with Cheese",
+      "aliases": [
+        "garlic bread with cheese"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/lasagna.jpg",
+      "name": "Lasagna",
+      "aliases": [
+        "lasagna"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/margherita-pizza.jpg",
+      "name": "Margherita Pizza",
+      "aliases": [
+        "margherita pizza"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/osso-buco.jpg",
+      "name": "Osso Buco",
+      "aliases": [
+        "osso buco"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/penne-arrabbiata.jpg",
+      "name": "Penne Arrabbiata",
+      "aliases": [
+        "penne arrabbiata"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/risotto.jpg",
+      "name": "Risotto",
+      "aliases": [
+        "risotto"
+      ]
+    },
+    {
+      "path": "/images/dishes/italian/spaghetti-aglio-e-olio.jpg",
+      "name": "Spaghetti Aglio e Olio",
+      "aliases": [
+        "spaghetti aglio e olio"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/dynamite-sushi-roll.jpg",
+      "name": "Dynamite Sushi Roll",
+      "aliases": [
+        "dynamite sushi roll"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/gyoza.jpg",
+      "name": "Gyoza",
+      "aliases": [
+        "gyoza"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/katsu-curry.jpg",
+      "name": "Katsu Curry",
+      "aliases": [
+        "katsu curry"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/miso-soup.jpg",
+      "name": "Miso Soup",
+      "aliases": [
+        "miso soup"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/okonomiyaki.jpg",
+      "name": "Okonomiyaki",
+      "aliases": [
+        "okonomiyaki"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/sushi-platter.jpg",
+      "name": "Sushi Platter",
+      "aliases": [
+        "sushi platter"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/tempura.jpg",
+      "name": "Tempura",
+      "aliases": [
+        "tempura"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/teriyaki-chicken.jpg",
+      "name": "Teriyaki Chicken",
+      "aliases": [
+        "teriyaki chicken"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/tonkotsu-ramen.jpg",
+      "name": "Tonkotsu Ramen",
+      "aliases": [
+        "tonkotsu ramen"
+      ]
+    },
+    {
+      "path": "/images/dishes/japanese/udon-noodles.jpg",
+      "name": "Udon Noodles",
+      "aliases": [
+        "udon noodles"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/bibimbap.jpg",
+      "name": "Bibimbap",
+      "aliases": [
+        "bibimbap"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/bulgogi.jpg",
+      "name": "Bulgogi",
+      "aliases": [
+        "bulgogi"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/galbi-korean-bbq-short-ribs.jpg",
+      "name": "Galbi (Korean BBQ Short Ribs)",
+      "aliases": [
+        "galbi",
+        "galbi korean bbq short ribs",
+        "korean bbq short ribs"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/japchae.jpg",
+      "name": "Japchae",
+      "aliases": [
+        "japchae"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/kimbap.jpg",
+      "name": "Kimbap",
+      "aliases": [
+        "kimbap"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/kimchi-fried-rice.jpg",
+      "name": "Kimchi Fried Rice",
+      "aliases": [
+        "kimchi fried rice"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/kimchi-jjigae.jpg",
+      "name": "Kimchi Jjigae",
+      "aliases": [
+        "kimchi jjigae"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/korean-fried-chicken.jpg",
+      "name": "Korean Fried Chicken",
+      "aliases": [
+        "korean fried chicken"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/sundubu-jjigae.jpg",
+      "name": "Sundubu Jjigae",
+      "aliases": [
+        "sundubu jjigae"
+      ]
+    },
+    {
+      "path": "/images/dishes/korean/tteokbokki.jpg",
+      "name": "Tteokbokki",
+      "aliases": [
+        "tteokbokki"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/burrito-bowl.jpg",
+      "name": "Burrito Bowl",
+      "aliases": [
+        "burrito bowl"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/chiles-rellenos.jpg",
+      "name": "Chiles Rellenos",
+      "aliases": [
+        "chiles rellenos"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/enchiladas.jpg",
+      "name": "Enchiladas",
+      "aliases": [
+        "enchiladas"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/fajitas.jpg",
+      "name": "Fajitas",
+      "aliases": [
+        "fajitas"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/guacamole.jpg",
+      "name": "Guacamole",
+      "aliases": [
+        "guacamole"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/mole-poblano.jpg",
+      "name": "Mole Poblano",
+      "aliases": [
+        "mole poblano"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/nachos.jpg",
+      "name": "Nachos",
+      "aliases": [
+        "nachos"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/quesadillas.jpg",
+      "name": "Quesadillas",
+      "aliases": [
+        "quesadillas"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/tacos-al-pastor.jpg",
+      "name": "Tacos al Pastor",
+      "aliases": [
+        "tacos al pastor"
+      ]
+    },
+    {
+      "path": "/images/dishes/mexican/tamales.jpg",
+      "name": "Tamales",
+      "aliases": [
+        "tamales"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/green-curry.jpg",
+      "name": "Green Curry",
+      "aliases": [
+        "green curry"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/khao-suey.jpg",
+      "name": "Khao Suey",
+      "aliases": [
+        "khao suey"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/mango-sticky-rice.jpg",
+      "name": "Mango Sticky Rice",
+      "aliases": [
+        "mango sticky rice"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/massaman-curry.jpg",
+      "name": "Massaman Curry",
+      "aliases": [
+        "massaman curry"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/pad-krapow-thai-basil-stir-fry.jpg",
+      "name": "Pad Krapow (Thai Basil Stir Fry)",
+      "aliases": [
+        "pad krapow",
+        "pad krapow thai basil stir fry",
+        "thai basil stir fry"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/pad-thai.jpg",
+      "name": "Pad Thai",
+      "aliases": [
+        "pad thai"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/som-tum.jpg",
+      "name": "Som Tum",
+      "aliases": [
+        "som tum"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/thai-spring-rolls.jpg",
+      "name": "Thai Spring Rolls",
+      "aliases": [
+        "thai spring rolls"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/tom-kha-soup.jpg",
+      "name": "Tom Kha Soup",
+      "aliases": [
+        "tom kha soup"
+      ]
+    },
+    {
+      "path": "/images/dishes/thai/tom-yum-goong.jpg",
+      "name": "Tom Yum Goong",
+      "aliases": [
+        "tom yum goong"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/banh-mi.jpg",
+      "name": "Banh Mi",
+      "aliases": [
+        "banh mi"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/banh-xeo.jpg",
+      "name": "Banh Xeo",
+      "aliases": [
+        "banh xeo"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/bun-bo-hue.jpg",
+      "name": "Bun Bo Hue",
+      "aliases": [
+        "bun bo hue"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/bun-cha.jpg",
+      "name": "Bun Cha",
+      "aliases": [
+        "bun cha"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/bun-thit-nuong.jpg",
+      "name": "Bun Thit Nuong",
+      "aliases": [
+        "bun thit nuong"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/cao-lau.jpg",
+      "name": "Cao Lau",
+      "aliases": [
+        "cao lau"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/cha-gio-fried-spring-rolls.jpg",
+      "name": "Cha Gio (Fried Spring Rolls)",
+      "aliases": [
+        "cha gio",
+        "cha gio fried spring rolls",
+        "fried spring rolls"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/com-tam-broken-rice.jpg",
+      "name": "Com Tam (Broken Rice)",
+      "aliases": [
+        "broken rice",
+        "com tam",
+        "com tam broken rice"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/goi-cuon-spring-rolls.jpg",
+      "name": "Goi Cuon (Spring Rolls)",
+      "aliases": [
+        "goi cuon",
+        "goi cuon spring rolls",
+        "spring rolls"
+      ]
+    },
+    {
+      "path": "/images/dishes/vietnamese/pho.jpg",
+      "name": "Pho",
+      "aliases": [
+        "pho"
+      ]
+    }
+  ],
+  "heroes": {
+    "french": "/images/cuisines/french.jpg",
+    "greek": "/images/cuisines/greek.jpg",
+    "indian-bengali": "/images/cuisines/indian-bengali.jpg",
+    "indian-biryani": "/images/cuisines/indian-biryani.jpg",
+    "indian-gujarati": "/images/cuisines/indian-gujarati.jpg",
+    "indian-hyderabadi": "/images/cuisines/indian-hyderabadi.jpg",
+    "indian-mughlai": "/images/cuisines/indian-mughlai.jpg",
+    "indian-north": "/images/cuisines/indian-north.jpg",
+    "indian-rajasthani": "/images/cuisines/indian-rajasthani.jpg",
+    "indian-south": "/images/cuisines/indian-south.jpg",
+    "indian-street-food": "/images/cuisines/indian-street-food.jpg",
+    "indian-tandoor": "/images/cuisines/indian-tandoor.jpg",
+    "indian": "/images/cuisines/indian.jpg",
+    "italian": "/images/cuisines/italian.jpg",
+    "japanese": "/images/cuisines/japanese.jpg",
+    "korean": "/images/cuisines/korean.jpg",
+    "mexican": "/images/cuisines/mexican.jpg",
+    "thai": "/images/cuisines/thai.jpg",
+    "vietnamese": "/images/cuisines/vietnamese.jpg"
+  }
+}

@@ -11,6 +11,8 @@
 // component would make both harder to read for a two-line size saving.
 import React, { useRef, useState } from "react";
 import { SUBCUISINE_EMOJI, type Subcuisine } from "@/lib/subcuisine";
+import { getCuisineHeroImage } from "@/lib/dish-images";
+import { Badge } from "@/components/ui/badge";
 
 const SWIPE_THRESHOLD = 100;
 
@@ -28,6 +30,8 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
   const cardRef = useRef<HTMLDivElement>(null);
 
   const emoji = SUBCUISINE_EMOJI[subcuisine.id] ?? "🍽️";
+  const heroImage = getCuisineHeroImage(subcuisine.id);
+  const kenBurnsVariant = subcuisine.id.length % 2 === 0 ? "a" : "b";
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isActive) return;
@@ -83,22 +87,29 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
       } ${animationClass}`}
     >
       <div className="relative w-full h-full flex flex-col">
-        <div className="flex-1 flex items-center justify-center select-none">
-          <span className="text-[7rem] drop-shadow-lg" aria-hidden="true">
-            {emoji}
-          </span>
-        </div>
+        {heroImage ? (
+          <img
+            src={heroImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute inset-0 w-full h-full object-cover animate-ken-burns-${kenBurnsVariant}`}
+            draggable={false}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center select-none">
+            <span className="text-[7rem] drop-shadow-lg" aria-hidden="true">
+              {emoji}
+            </span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
           <h2 className="text-3xl font-headline font-bold">{subcuisine.name}</h2>
           <div className="mt-4 flex flex-wrap gap-2">
             {subcuisine.dishes.slice(0, 5).map((dish) => (
-              <span
-                key={dish}
-                className="text-xs bg-white/20 text-white backdrop-blur-sm border-0 rounded-full px-2.5 py-1"
-              >
+              <Badge key={dish} variant="outline">
                 {dish}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>

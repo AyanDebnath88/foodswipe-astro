@@ -2,12 +2,18 @@
 
 // Ported from the reference Next.js project's
 // src/components/dishes/dish-card.tsx. Drag/swipe mechanics unchanged.
-// Deviation: no per-dish AI-generated photography (the reference used a
-// Pollinations.ai prompt built from the dish name, an external network
-// dependency with no fallback story in this rewrite) -- a plain icon tile
-// stands in, consistent with CuisineCard's same call for cuisine artwork.
+// Deviation: the reference used a Pollinations.ai prompt built from the dish
+// name at render time (an external network dependency with no fallback
+// story in this rewrite). Instead, dish photography comes from the static
+// shot catalog in src/lib/dish-images.ts: dish.name -> catalog match ->
+// specific photo, else the cuisineId's hero shot, else this still falls
+// through to the plain icon tile below -- a generative-menu dish that
+// matches nothing in the catalog is common (see dish-swipe-area.tsx's
+// header comment on where dish names come from) and must never 404.
 import React, { useRef, useState } from "react";
 import { Sparkles, UtensilsCrossed } from "lucide-react";
+import { getDishImage } from "@/lib/dish-images";
+import { Badge } from "@/components/ui/badge";
 
 const SWIPE_THRESHOLD = 100;
 
@@ -20,16 +26,19 @@ export interface Dish {
 
 interface DishCardProps {
   dish: Dish;
+  cuisineId: string;
   onSwipe: (direction: "left" | "right") => void;
   isActive: boolean;
   zIndex: number;
 }
 
-export function DishCard({ dish, onSwipe, isActive, zIndex }: DishCardProps) {
+export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCardProps) {
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const dishImage = getDishImage(dish.name, cuisineId);
+  const kenBurnsVariant = dish.id.length % 2 === 0 ? "a" : "b";
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isActive) return;
@@ -82,16 +91,26 @@ export function DishCard({ dish, onSwipe, isActive, zIndex }: DishCardProps) {
       } ${animationClass}`}
     >
       <div className="relative w-full h-full flex flex-col">
-        <div className="flex-1 flex items-center justify-center select-none">
-          <UtensilsCrossed className="h-16 w-16 text-white/90 drop-shadow" aria-hidden="true" />
-        </div>
+        {dishImage ? (
+          <img
+            src={dishImage}
+            alt=""
+            aria-hidden="true"
+            className={`absolute inset-0 w-full h-full object-cover animate-ken-burns-${kenBurnsVariant}`}
+            draggable={false}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center select-none">
+            <UtensilsCrossed className="h-16 w-16 text-white/90 drop-shadow" aria-hidden="true" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
           {dish.isTopPick && (
-            <span className="inline-flex items-center gap-1 text-xs bg-secondary/80 text-secondary-foreground backdrop-blur-sm border-0 rounded-full px-2.5 py-1 mb-2">
+            <Badge className="mb-2 backdrop-blur-sm">
               <Sparkles className="w-3 h-3" />
               Top Pick
-            </span>
+            </Badge>
           )}
           <h2 className="text-3xl font-headline font-bold">{dish.name}</h2>
           {dish.description && <p className="text-sm mt-1 text-white/90">{dish.description}</p>}

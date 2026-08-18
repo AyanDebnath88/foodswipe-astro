@@ -11,13 +11,11 @@
 // cuisine id, rather than being stored as data.
 import { createSupabaseBrowserClient } from "./supabase/client";
 
-// The Cuisine shape, syntheticCuisineFromName() and the dietary safety gate
-// all live in ./suggestion-safety, which has no browser dependencies so the
-// test suite can import and exercise the real gate (see that file's header).
-// They are re-exported here so every existing caller keeps importing them from
-// "@/lib/cuisines" and there is still exactly one definition of each.
-export type { Cuisine, SuggestionResolution } from "./suggestion-safety";
-export { syntheticCuisineFromName, resolveSuggestedCuisines } from "./suggestion-safety";
+// The Cuisine shape lives in ./suggestion-safety (no browser dependencies,
+// so Node test scripts can import it directly). Re-exported here so every
+// existing caller keeps importing it from "@/lib/cuisines" and there is
+// still exactly one definition.
+export type { Cuisine } from "./suggestion-safety";
 
 import type { Cuisine } from "./suggestion-safety";
 

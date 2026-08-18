@@ -154,26 +154,243 @@
 }
 
 /*
+ * Ken Burns motion for card photography (cuisine/subcuisine hero shots, dish
+ * shots): a slow continuous zoom+drift so a static photo reads as alive
+ * behind the swipe deck. Two alternating variants (drift toward opposite
+ * corners) so adjacent cards in a stack don't all pan the same direction.
+ * Long duration + ease-out-in-ish timing keeps it subtle rather than
+ * distracting during the few seconds a card is actually looked at.
+ */
+@keyframes ken-burns-a {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(-2%, -2%); }
+}
+@keyframes ken-burns-b {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(1.12) translate(2%, -1.5%); }
+}
+.animate-ken-burns-a {
+  animation: ken-burns-a 12s ease-in-out infinite alternate;
+}
+.animate-ken-burns-b {
+  animation: ken-burns-b 12s ease-in-out infinite alternate;
+}
+
+/*
  * MATCH-REVEAL CELEBRATION TOKENS -- scoped, not global. Do not use outside
  * .match-reveal-scope.
  *
- * These three are the "Hongdae Neon Café" half of the resolved hybrid
- * direction (deep-black backdrop + neon glow), deliberately kept OUT of
- * :root and OUT of @theme inline. Putting them in @theme inline would
- * generate global bg-void/text-neon-pink/etc. Tailwind utilities usable
- * (and misusable) anywhere in the app -- which would let the celebration
- * palette leak into the everyday ivory/terracotta/sage app the user
- * explicitly asked to stay light, not dark-mode. The match-reveal moment is
- * the one deliberately bold, bounded exception; scoping these variables to
- * a wrapper class is what enforces that boundary in code, not just in intent.
+ * REVISED by the Claude Design system pass (delivery/rationale.md item 9):
+ * the original brief's neon pink/mint on #241220 read as a different product
+ * dropped into the middle of this one, once seen in flow. The *decision* is
+ * unchanged -- one bounded dark takeover, everything else stays light -- but
+ * the accents now come from the everyday warm family instead of true neon:
+ * void is a warm ink-brown (one step below --foreground, not a colour-wheel
+ * jump), the glow source is an ember gradient, and the dish name sits in the
+ * everyday gold. It still reads as a takeover; it no longer reads as a
+ * different brand. Deliberately kept OUT of :root/@theme inline regardless --
+ * that boundary (celebration tokens exist ONLY inside this class) is what
+ * stops the takeover palette leaking into the everyday app, warm or neon.
  *
  * Usage: wrap the match-reveal celebration markup in a `.match-reveal-scope`
- * element, then reference these as plain CSS vars (`background: var(--void)`,
- * `box-shadow: 0 0 40px var(--neon-pink)`, etc.) or Tailwind arbitrary values
- * (`bg-[var(--void)]`) from within that scope only.
+ * element, then reference these as plain CSS vars, typically via Tailwind
+ * arbitrary values (`bg-[hsl(var(--void))]`) from within that scope only.
  */
 .match-reveal-scope {
-  --void: 313 33% 11%;        /* #241220 */
-  --neon-pink: 331 100% 65%;  /* #FF4FA3 */
-  --neon-mint: 168 76% 58%;   /* #43E5C5 */
+  --void: 15 24% 13%;         /* #2A1A16 -- warm ink-brown, one step below --foreground */
+  --ember: 20 76% 66%;        /* #E8875F -- badge/glow gradient top */
+  --ember-deep: 13 55% 51%;   /* #C05F3F -- badge/glow gradient bottom */
+  --celebrate-accent: 42 70% 70%; /* #E8C87E -- the everyday gold, 11.1:1 on void */
+  --void-ink: 24 100% 97%;    /* #FFF8F2 -- primary text on void, 15.2:1 */
+  --void-ink-2: 25 39% 81%;   /* #E3CDBE -- secondary text on void, 8.4:1 */
+}
+
+/*
+ * Celebration entrance (Phase D, match-reveal.tsx's void+neon takeover) --
+ * an orchestrated stagger, not everything appearing at once: backdrop, then
+ * the heart badge (with a glow pulse baked into its own entrance rather than
+ * a separate looping pulse -- a badge that never stops glowing reads as a
+ * loading spinner, not a celebration), then heading, then subtext. Each
+ * layer is the same class with a different `--stagger-delay` custom
+ * property so the JSX doesn't need four near-duplicate keyframe blocks.
+ */
+@keyframes celebration-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes celebration-rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes celebration-heart-in {
+  0% { opacity: 0; transform: scale(0.5); box-shadow: 0 0 0 hsl(var(--ember) / 0); }
+  60% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 40px hsl(var(--ember) / 0.65); }
+  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 24px hsl(var(--ember) / 0.55); }
+}
+.animate-celebration-backdrop {
+  animation: celebration-backdrop-in 0.5s ease-out both;
+}
+.animate-celebration-heart {
+  animation: celebration-heart-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--stagger-delay, 0.15s);
+}
+.animate-celebration-rise {
+  animation: celebration-rise-in 0.5s ease-out both;
+  animation-delay: var(--stagger-delay, 0.35s);
+}
+
+/*
+ * Light page-load stagger (Phase D) -- swipe.astro had zero page-load
+ * animation before this; a small rise-in on the first card + the like/pass
+ * controls is a net gain without turning into a whole page-transition
+ * system (explicitly out of scope, see the design plan's "Motion beyond
+ * cards" section).
+ */
+@keyframes page-load-rise-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page-load {
+  animation: page-load-rise-in 0.45s ease-out both;
+  animation-delay: var(--stagger-delay, 0s);
+}
+
+/*
+ * prefers-reduced-motion override for every animation this app ships --
+ * swipe-out, Ken Burns, the celebration entrance, and the page-load stagger
+ * alike. One rule dropping every animation/transition to near-instant
+ * (0.01ms, not 0s -- some browsers/testing tools treat a 0s animation as
+ * "never ran" and skip its associated events/callbacks) rather than a
+ * per-class override, so a future animation class added here is covered
+ * automatically instead of silently missing this.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * ============================================================================
+ * CLAUDE DESIGN SYSTEM PASS -- everything below is new, delivered as a zip
+ * (delivery/tokens.css, rationale.md; see .claude/skills/build-log/SKILL.md
+ * for the full brief this was built against). --fs-* prefix throughout,
+ * deliberately not merged into the unprefixed :root tokens above or into
+ * @theme inline -- these are additive vocabulary (spacing/radius/elevation/
+ * state colors/motion durations) for INCREMENTAL adoption via Tailwind
+ * arbitrary values (`rounded-[var(--fs-r-2xl)]`, `shadow-[var(--fs-e-1)]`),
+ * not a replacement for the existing --background/--primary/etc tokens or a
+ * remap of Tailwind's own rounded-2xl/etc scale. Remapping the latter would
+ * silently reskin every *existing* use of e.g. `rounded-2xl` app-wide,
+ * including ones that were never meant to be a discovery-card radius (most
+ * of this app's buttons already use rounded-2xl as a *button* radius, which
+ * this system gives its own smaller value, --fs-r-md). Adopt --fs-* deliberately,
+ * component by component; nothing here changes existing rendering until used.
+ * ============================================================================
+ */
+:root {
+  /* derived neutrals (sampled off the existing ink/bg, no new hue) */
+  --fs-ink-2:         #4A3B31;  /* body on ivory      9.1:1  */
+  --fs-ink-3:         #6B5749;  /* secondary text     6.2:1  */
+  --fs-ink-4:         #8A7462;  /* meta, >=16px/bold  4.6:1  */
+  --fs-ink-5:         #A8927E;  /* placeholders only         */
+  --fs-line:          #E7DACD;
+  --fs-line-soft:     #EFE3D6;
+  --fs-line-strong:   #E2D2C1;
+  --fs-surface-sunk:  #F2E9DC;
+  --fs-surface-notice:#F4EDE1;
+
+  /* state colors */
+  --fs-primary-hover:    #C86A4B;
+  --fs-primary-active:   #C05F3F;
+  --fs-primary-disabled: #E7C8B9;
+  --fs-on-primary:       #FFF6F0;
+  --fs-on-primary-muted: #A38676;
+  --fs-on-secondary:     #1C2A18;
+  --fs-on-accent:        #1C1410;
+  --fs-success-bg:       #EDF1E8;
+  --fs-success-line:     #D3DEC6;
+  --fs-success-ink:      #3F4E31;
+  --fs-match-bg:         #E9EFE3;
+  --fs-match-line:       #CBD8BE;
+  --fs-match-ink:        #43552F;
+  --fs-attention-line:   #C08A6E;
+  --fs-destructive:      #A6503A;  /* confirm-dialog action ONLY -- see rationale.md #13 */
+  --fs-skeleton:         #F2E9DC;
+  --fs-focus-ring:       0 0 0 3px rgba(217,119,87,.18);
+
+  /* spacing (4px base) + breakpoints */
+  --fs-1: 4px;  --fs-2: 8px;  --fs-3: 12px; --fs-4: 16px;
+  --fs-5: 20px; --fs-6: 24px; --fs-8: 32px; --fs-10: 40px;
+  --fs-14: 56px; --fs-18: 72px;
+  --fs-pad-screen-mobile: 20px;
+  --fs-pad-screen-desktop: 40px;
+  --fs-gutter-desktop: 24px;
+  --fs-max-content: 1240px;
+  --fs-bp-sm: 375px; --fs-bp-md: 768px; --fs-bp-lg: 1120px; --fs-bp-xl: 1440px;
+  --fs-nav-height: 62px;
+  --fs-nav-inset: 26px;
+  --fs-thumb-clearance: 96px;
+  --fs-card-max: 460px;
+  --fs-form-max: 420px;
+
+  /* radius -- five steps tied to meaning, not size (rationale.md #1) */
+  --fs-r-pill:  999px;  /* transient/labels */
+  --fs-r-xs:    8px;    /* badges */
+  --fs-r-sm:    14px;   /* rows, small controls */
+  --fs-r-md:    16px;   /* buttons, inputs */
+  --fs-r-lg:    18px;   /* utility cards */
+  --fs-r-xl:    22px;   /* panels */
+  --fs-r-2xl:   28px;   /* swipe + discovery cards */
+  --fs-r-sheet: 32px;   /* bottom sheets */
+  --fs-r-device:44px;
+
+  /* elevation -- warm-tinted only, never neutral black */
+  --fs-e-0: 0 1px 2px rgba(28,20,16,.05);
+  --fs-e-1: 0 1px 2px rgba(28,20,16,.06), 0 10px 20px -10px rgba(28,20,16,.25);
+  --fs-e-2: 0 2px 4px rgba(28,20,16,.06), 0 18px 36px -16px rgba(28,20,16,.28);
+  --fs-e-primary: 0 2px 4px rgba(217,119,87,.25), 0 12px 24px -12px rgba(217,119,87,.55);
+  --fs-e-sheet: 0 -12px 32px -16px rgba(28,20,16,.22);
+  --fs-e-glow:  0 0 44px -6px rgba(217,119,87,.6);
+
+  /* type scale -- families unchanged (Fraunces/Inter), mobile / desktop pairs */
+  --fs-t-celebrate: 46px;  --fs-t-celebrate-d: 76px;
+  --fs-t-h1:        32px;  --fs-t-h1-d:        44px;
+  --fs-t-card:      34px;  --fs-t-card-d:      40px;
+  --fs-t-h2:        20px;  --fs-t-h2-d:        22px;
+  --fs-t-lg:        16.5px;
+  --fs-t-body:      15px;
+  --fs-t-sm:        13.5px;
+  --fs-t-xs:        12.5px;
+  --fs-t-caps:      11.5px;
+
+  /* motion -- one vocabulary, three durations (rationale.md #5) */
+  --fs-dur-instant:   120ms;
+  --fs-dur-fast:      150ms;
+  --fs-dur-base:      220ms;
+  --fs-dur-exit:      180ms;
+  --fs-dur-enter:     300ms;
+  --fs-dur-slow:      420ms;
+  --fs-dur-celebrate: 520ms;
+  --fs-ease-out:    cubic-bezier(.22, 1, .36, 1);
+  --fs-ease-spring: cubic-bezier(.34, 1.56, .64, 1);  /* overshoot: pops only */
+  --fs-ease-exit:   cubic-bezier(.32, .72, 0, 1);
+  --fs-stagger:     60ms;
+  --fs-skeleton-delay: 300ms;
+  --fs-toast-dwell: 4000ms;
+  --fs-swipe-threshold: 96px;
+  --fs-swipe-stamp-in:  32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fs-dur-instant: 1ms; --fs-dur-fast: 1ms; --fs-dur-base: 1ms;
+    --fs-dur-exit: 150ms; --fs-dur-enter: 150ms; --fs-dur-slow: 150ms;
+    --fs-dur-celebrate: 150ms; --fs-stagger: 0ms;
+  }
 }

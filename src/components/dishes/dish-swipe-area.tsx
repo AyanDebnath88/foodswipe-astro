@@ -89,6 +89,7 @@ import {
 } from "@/lib/restaurant-menu";
 import { errorMessage } from "@/lib/errors";
 import { currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
+import { shuffle } from "@/lib/utils";
 import { DeliveryOptions } from "@/components/delivery/delivery-options";
 import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
 
@@ -232,13 +233,18 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
       setMenuRetryAfter(0);
       try {
         const { menu, source } = await fetchRestaurantMenu(restaurantName, cuisineName);
+        // Shuffled per user, per open -- same reasoning as the cuisine deck
+        // (src/lib/utils.ts's shuffle()): order is local-only display state,
+        // match detection is keyed by dish name, not position.
         setMenuDishes(
-          menu.map((dish) => ({
-            id: dishIdFor(dish.name),
-            name: dish.name,
-            description: dish.description || undefined,
-            isTopPick: dish.isTopPick,
-          }))
+          shuffle(
+            menu.map((dish) => ({
+              id: dishIdFor(dish.name),
+              name: dish.name,
+              description: dish.description || undefined,
+              isTopPick: dish.isTopPick,
+            }))
+          )
         );
         setMenuSource(source);
         setMenuState("ready");
@@ -255,7 +261,7 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
           return;
         }
         if (fallbackDishes.length > 0) {
-          setMenuDishes(fallbackDishes);
+          setMenuDishes(shuffle(fallbackDishes));
           setMenuSource("catalog");
           setMenuState("ready");
           return;
@@ -671,6 +677,7 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
             <DishCard
               key={dish.id}
               dish={dish}
+              cuisineId={cuisineId}
               onSwipe={(dir) => handleSwipe(dir, dish)}
               isActive={index === 0}
               zIndex={deck.length - index}
@@ -709,6 +716,7 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
         <Button
           variant="outline"
           size="icon"
+          aria-label="Pass on this dish"
           className="w-16 h-16 rounded-full shadow-lg border-2 border-destructive/50 text-destructive hover:bg-destructive/10"
           onClick={() => document.getElementById("dish-swipe-left-btn")?.click()}
         >
@@ -717,6 +725,7 @@ export function DishSwipeArea({ cuisineId, restaurantName, roomCode }: DishSwipe
         <Button
           variant="outline"
           size="icon"
+          aria-label="Like this dish"
           className="w-16 h-16 rounded-full shadow-lg border-2 border-primary/50 text-primary hover:bg-primary/10"
           onClick={() => document.getElementById("dish-swipe-right-btn")?.click()}
         >
