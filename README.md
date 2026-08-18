@@ -1,43 +1,49 @@
-# Astro Starter Kit: Minimal
+# Food Swipe
+
+Stop arguing, start eating. A group swipes on cuisines together (Tinder-style),
+gets a real-time celebration the moment everyone agrees, then swipes dishes
+at a real nearby restaurant with real Google ratings and, where available,
+real menu items pulled from the restaurant's own website.
+
+**Live**: https://foodswipe-astro.vercel.app
+
+## Stack
+
+Astro (server output, `@astrojs/vercel` adapter) + React islands + Tailwind
+v4 + Supabase (Postgres, Auth, Realtime), deployed on Vercel. No service-role
+Supabase key anywhere, by design — privileged writes go through `SECURITY
+DEFINER` Postgres functions instead (see `AGENTS.md`).
+
+## Status
+
+Functionally complete through the design pass and initial real-restaurant-data
+work. **Full status, architecture, and exactly what's pending lives in
+`.claude/skills/build-log/SKILL.md` — read that, not this file, for anything
+beyond "how do I run this locally."**
+
+## Local development
 
 ```sh
-npm create astro@latest -- --template minimal
+npm install
+npm run dev          # localhost:4321
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+Needs a `.env` (copy `.env.example`) with Supabase + Gemini + Geoapify +
+Google Places keys. Real accounts/data only — this app has never used mock
+auth or fabricated data (ratings, prices, delivery ETAs are real or `null`,
+never invented; see the build log's "no fabricated data" thread if that
+history matters to you).
 
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```sh
+npx astro check       # typecheck
+npm run build          # production build
+node --env-file=.env scripts/playwright/demo-two-user-match.mjs   # live 2-user test
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Deploying
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Push to `master` — Vercel auto-deploys via the GitHub connection. New
+Supabase migrations under `supabase/migrations/` are **not** applied
+automatically; run each new one individually in Supabase Studio's SQL
+editor (never the concatenated `supabase/ALL_MIGRATIONS.sql` bundle against
+an already-migrated project — see `AGENTS.md`).
