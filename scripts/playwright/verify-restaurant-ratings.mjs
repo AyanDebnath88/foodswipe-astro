@@ -1,4 +1,4 @@
-import { openSession, login, closeAll, BASE_URL } from "./playwright/multi-session.mjs";
+import { openSession, login, closeAll, BASE_URL } from "./multi-session.mjs";
 
 const KOLKATA = { latitude: 22.5726, longitude: 88.3639 };
 
