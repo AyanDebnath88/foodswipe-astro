@@ -2,6 +2,13 @@
 // build-log decision to keep AI calls lightweight (plain fetch only).
 // Server-only: callers live in src/pages/api/*.ts, which have
 // `export const prerender = false` and never ship this key to the client.
+//
+// Also importable from a plain `node scripts/*.mjs` process (e.g.
+// enrich-restaurant-menus.mjs, Phase 6 Track B) -- those run outside
+// Vite entirely, so `import.meta.env` is simply undefined there, not
+// populated the way it is inside an Astro route. `params.apiKey` lets a
+// script pass `process.env.GEMINI_API_KEY` explicitly instead; API routes
+// keep working unchanged since they never pass it.
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -22,8 +29,9 @@ export async function generateGeminiJson<T>(params: {
   prompt: string;
   responseSchema: Record<string, unknown>;
   timeoutMs?: number;
+  apiKey?: string;
 }): Promise<T> {
-  const apiKey = import.meta.env.GEMINI_API_KEY;
+  const apiKey = params.apiKey ?? import.meta.env?.GEMINI_API_KEY;
   if (!apiKey) {
     throw new GeminiError("GEMINI_API_KEY is not configured");
   }

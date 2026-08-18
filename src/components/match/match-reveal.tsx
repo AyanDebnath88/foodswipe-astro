@@ -466,6 +466,32 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                       Paid placement by {place.advertiserName}
                     </p>
                   )}
+                  {/*
+                    Menu preview (Track B, 0019_restaurant_menu_items.sql):
+                    dish names pulled from the restaurant's own website, not
+                    Zomato/Swiggy (see clever-baking-map.md for why). Only
+                    ever a handful of real dishes -- never a fabricated
+                    "sample menu" when enrichment hasn't reached this
+                    restaurant yet, which is most of them until the
+                    enrichment script has had time to work through the cache.
+                  */}
+                  {!sponsored && place.menuPreview.length > 0 && (
+                    <div className="mt-2 rounded-lg bg-secondary/10 px-2.5 py-2">
+                      <p className="font-body text-[10px] uppercase font-bold tracking-wide text-secondary-foreground/70 mb-1">
+                        On the menu
+                      </p>
+                      <ul className="font-body text-xs text-foreground space-y-0.5">
+                        {place.menuPreview.map((item) => (
+                          <li key={item.dishName} className="flex items-baseline justify-between gap-2">
+                            <span className="truncate">{item.dishName}</span>
+                            {item.price !== null && (
+                              <span className="text-muted-foreground shrink-0">₹{item.price}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <div className="mt-4 flex flex-col gap-2">
                     <Button
                       onClick={() => goToDishes(place.name)}
@@ -480,7 +506,18 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                         rel="noopener noreferrer"
                         className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
                       >
-                        View details
+                        {/*
+                          The Maps-link fallback for a website-less restaurant
+                          (see readRestaurantCache()/find-restaurants.ts:
+                          `website: r.website ?? r.mapsUrl`) -- label it
+                          honestly rather than calling a Maps redirect
+                          "View details".
+                        */}
+                        {!sponsored && place.menuPreview.length > 0
+                          ? "View full menu"
+                          : place.website.includes("maps.google")
+                            ? "View on Google Maps"
+                            : "View details"}
                       </a>
                     )}
                   </div>

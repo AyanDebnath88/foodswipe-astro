@@ -6,6 +6,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GooglePlaceResult } from "./google-places";
 
+export interface MenuPreviewItem {
+  dishName: string;
+  price: number | null;
+}
+
 export interface CachedRestaurant {
   name: string;
   address: string | null;
@@ -14,6 +19,8 @@ export interface CachedRestaurant {
   priceLevel: number | null;
   website: string | null;
   mapsUrl: string;
+  /** Up to 3 dishes from restaurant_menu_items, when Track B has enriched this restaurant. Empty otherwise -- absence, never a fabricated preview. */
+  menuPreview: MenuPreviewItem[];
 }
 
 const CACHE_TTL_DAYS = 14;
@@ -25,6 +32,14 @@ const BOUNDING_BOX_DEGREES = 0.05;
 /**
  * Fresh cache rows near (latitude, longitude) tagged with `cuisine`. Empty
  * array means "cache miss" to the caller -- go fetch from Google Places.
+ *
+ * Ranks restaurants with a Track B-verified menu (see 0019) above those
+ * without one, real rating as the tiebreaker within each tier -- the
+ * ranking rule from the plan, minus the "matched dish" tier: this app
+ * doesn't know which dish a room wants until AFTER a restaurant is picked
+ * (dish swiping happens per-restaurant, see dish-swipe-area.tsx), so
+ * "verified menu exists at all" is the real signal available at search
+ * time, not "verified for this exact dish."
  */
 export async function readRestaurantCache(
   supabase: SupabaseClient,
@@ -36,7 +51,7 @@ export async function readRestaurantCache(
 
   const { data, error } = await supabase
     .from("restaurants")
-    .select("name, address, rating, review_count, price_level, website, maps_url, cuisine_tags")
+    .select("id, name, address, rating, review_count, price_level, website, maps_url, cuisine_tags")
     .gte("latitude", latitude - BOUNDING_BOX_DEGREES)
     .lte("latitude", latitude + BOUNDING_BOX_DEGREES)
     .gte("longitude", longitude - BOUNDING_BOX_DEGREES)
@@ -46,9 +61,22 @@ export async function readRestaurantCache(
     .order("rating", { ascending: false, nullsFirst: false })
     .limit(12);
 
-  if (error || !data) return [];
+  if (error || !data || data.length === 0) return [];
 
-  return data.map((row) => ({
+  const ids = data.map((row) => row.id as string);
+  const menuByRestaurant = new Map<string, MenuPreviewItem[]>();
+  const { data: menuRows } = await supabase
+    .from("restaurant_menu_items")
+    .select("restaurant_id, dish_name, price")
+    .in("restaurant_id", ids);
+
+  for (const row of menuRows ?? []) {
+    const list = menuByRestaurant.get(row.restaurant_id as string) ?? [];
+    if (list.length < 3) list.push({ dishName: row.dish_name as string, price: row.price as number | null });
+    menuByRestaurant.set(row.restaurant_id as string, list);
+  }
+
+  const withMenus: CachedRestaurant[] = data.map((row) => ({
     name: row.name as string,
     address: row.address as string | null,
     rating: row.rating as number | null,
@@ -56,7 +84,15 @@ export async function readRestaurantCache(
     priceLevel: row.price_level as number | null,
     website: row.website as string | null,
     mapsUrl: row.maps_url as string,
+    menuPreview: menuByRestaurant.get(row.id as string) ?? [],
   }));
+
+  return withMenus.sort((a, b) => {
+    if (a.menuPreview.length > 0 !== b.menuPreview.length > 0) {
+      return a.menuPreview.length > 0 ? -1 : 1;
+    }
+    return (b.rating ?? -1) - (a.rating ?? -1);
+  });
 }
 
 /**

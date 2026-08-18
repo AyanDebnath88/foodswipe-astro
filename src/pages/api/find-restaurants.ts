@@ -29,7 +29,7 @@ import {
   tooManyRequests,
 } from "@/lib/api/guard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { readRestaurantCache, writeRestaurantCache } from "@/lib/restaurant-cache";
+import { readRestaurantCache, writeRestaurantCache, type MenuPreviewItem } from "@/lib/restaurant-cache";
 import { fetchFromGooglePlaces } from "@/lib/google-places";
 
 export const prerender = false;
@@ -50,6 +50,8 @@ export interface Restaurant {
   /** 0-4, null when unknown. Render as ₹ symbols via google-places.ts's priceLevelToSymbol(). */
   priceLevel: number | null;
   website: string;
+  /** Up to 3 dishes pulled from the restaurant's own site (Track B, 0019). Empty when not yet enriched -- never fabricated. */
+  menuPreview: MenuPreviewItem[];
 }
 
 function mockRestaurants(cuisine: string, latitude: number, longitude: number): Restaurant[] {
@@ -73,6 +75,7 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       rating: null,
       reviewCount: null,
       priceLevel: null,
+      menuPreview: [],
       website: `https://www.google.com/search?q=${encodeURIComponent(mockPrefix + " " + cuisine + " restaurant " + addressCity)}`,
     },
     {
@@ -81,6 +84,7 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       rating: null,
       reviewCount: null,
       priceLevel: null,
+      menuPreview: [],
       website: `https://www.google.com/search?q=${encodeURIComponent(cuisine + " restaurant Salt Lake " + addressCity)}`,
     },
     {
@@ -89,6 +93,7 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       rating: null,
       reviewCount: null,
       priceLevel: null,
+      menuPreview: [],
       website: `https://www.google.com/search?q=${encodeURIComponent("Bukhara " + cuisine + " restaurant " + addressCity)}`,
     },
   ];
@@ -133,7 +138,7 @@ async function fetchFromGeoapify(
     const rating = null;
     const website = props.website || `https://www.google.com/search?q=${encodeURIComponent(name + " restaurant")}`;
 
-    const record: Restaurant = { name, vicinity, rating, reviewCount: null, priceLevel: null, website };
+    const record: Restaurant = { name, vicinity, rating, reviewCount: null, priceLevel: null, menuPreview: [], website };
 
     const lowerName = name.toLowerCase();
     const tags = props.catering?.cuisine?.toLowerCase() || "";
@@ -155,6 +160,7 @@ async function fetchFromGeoapify(
       rating: g.rating,
       reviewCount: g.reviewCount,
       priceLevel: g.priceLevel,
+      menuPreview: g.menuPreview,
       website: g.website,
     });
   }
@@ -200,6 +206,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         rating: r.rating,
         reviewCount: r.reviewCount,
         priceLevel: r.priceLevel,
+        menuPreview: r.menuPreview,
         website: r.website ?? r.mapsUrl,
       }));
       return json({ restaurants, source: "cache" });
@@ -224,6 +231,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           rating: p.rating,
           reviewCount: p.reviewCount,
           priceLevel: p.priceLevel,
+          menuPreview: [], // fresh from Google -- Track B enrichment hasn't run for this restaurant yet
           website: p.website ?? p.mapsUrl,
         }));
         return json({ restaurants, source: "google" });
