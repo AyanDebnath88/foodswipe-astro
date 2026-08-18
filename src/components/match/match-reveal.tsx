@@ -9,7 +9,7 @@
 // already matched, never the match itself), and a manual "type a name"
 // fallback for when geolocation isn't available or nothing nearby matches.
 import React, { useEffect, useState } from "react";
-import { Heart, Utensils, Loader2, MapPin } from "lucide-react";
+import { Heart, Utensils, Loader2, MapPin, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { fetchRoomByCode, type RoomState } from "@/lib/rooms";
 import { CUISINE_EMOJI } from "@/lib/cuisines";
 import { fetchSubcuisines } from "@/lib/subcuisine";
 import { mergeSponsoredFirst, type SponsoredRestaurant } from "@/lib/sponsored";
+import { priceLevelToSymbol } from "@/lib/google-places";
 import type { Restaurant } from "@/pages/api/find-restaurants";
 
 // Cuisines with enough real internal breadth to get a second narrowing
@@ -443,6 +444,22 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                   </div>
                   {address && (
                     <p className="font-body text-xs text-muted-foreground mt-1.5 line-clamp-2">{address}</p>
+                  )}
+                  {!sponsored && (place.rating !== null || place.priceLevel !== null) && (
+                    <div className="flex items-center gap-2 mt-1.5 font-body text-xs">
+                      {place.rating !== null && (
+                        <span className="inline-flex items-center gap-1 text-foreground font-semibold">
+                          <Star className="h-3.5 w-3.5 fill-accent text-accent" />
+                          {place.rating.toFixed(1)}
+                          {place.reviewCount !== null && (
+                            <span className="text-muted-foreground font-normal">({place.reviewCount})</span>
+                          )}
+                        </span>
+                      )}
+                      {priceLevelToSymbol(place.priceLevel) && (
+                        <span className="text-muted-foreground">{priceLevelToSymbol(place.priceLevel)}</span>
+                      )}
+                    </div>
                   )}
                   {sponsored && place.advertiserName && (
                     <p className="font-body text-[11px] text-muted-foreground mt-1">

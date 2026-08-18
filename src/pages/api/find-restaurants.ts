@@ -1,7 +1,7 @@
 // POST /api/find-restaurants
 //
 //   body:     { cuisine: string, latitude: number, longitude: number }
-//   response: { restaurants: Restaurant[], source: "geoapify" | "mock" }
+//   response: { restaurants: Restaurant[], source: "cache" | "google" | "geoapify" | "mock" }
 //
 // Ported from the reference Next.js/Genkit flow
 // (Food Swipe App/src/ai/flows/find-restaurants.ts): direct Geoapify Places
@@ -9,9 +9,14 @@
 // configured, and this phase's task only asked for Geoapify), same query
 // shape and semantic cuisine-name matching/reordering as the original.
 //
-// Keeps the reference file's regional mock-fallback behavior for when
-// Geoapify is unreachable, unconfigured, or returns nothing -- still useful
-// as a degraded-mode fallback so this endpoint never hard-fails the caller.
+// Phase 6 Track A (C:\Users\ajitd\.claude\plans\clever-baking-map.md): real
+// ratings + price level via Google Places, cached in Supabase
+// (0018_restaurant_cache.sql) so a busy room doesn't spend a paid Places
+// call on every search. Fallback chain, each step only reached if the one
+// above genuinely can't answer: fresh cache -> live Google Places (writes
+// back to the cache) -> Geoapify (no ratings, but real listings) -> the
+// regional mock data. Every step keeps the same promise the rating-
+// fabrication fix established: a number that isn't real is never shown.
 import type { APIRoute } from "astro";
 import {
   BadRequest,
@@ -23,11 +28,14 @@ import {
   readJsonBody,
   tooManyRequests,
 } from "@/lib/api/guard";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { readRestaurantCache, writeRestaurantCache } from "@/lib/restaurant-cache";
+import { fetchFromGooglePlaces } from "@/lib/google-places";
 
 export const prerender = false;
 
-// Unauthenticated and backed by a paid Geoapify key, so the same size/rate
-// caps as the Gemini routes apply. Coordinates are also range-checked now:
+// Unauthenticated and backed by paid API keys, so the same size/rate caps as
+// the Gemini routes apply. Coordinates are also range-checked now:
 // `typeof NaN === "number"` and latitude 999 both used to sail through and
 // become a live Geoapify query.
 const MAX_CUISINE = 60;
@@ -38,6 +46,9 @@ export interface Restaurant {
   vicinity: string;
   /** Null whenever we have no genuine rating. Never invent one. */
   rating: number | null;
+  reviewCount: number | null;
+  /** 0-4, null when unknown. Render as ₹ symbols via google-places.ts's priceLevelToSymbol(). */
+  priceLevel: number | null;
   website: string;
 }
 
@@ -60,18 +71,24 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       name: `${mockPrefix} ${capitalizedCuisine} Kitchen`,
       vicinity: `1.5 km away, Park Street, ${addressCity}`,
       rating: null,
+      reviewCount: null,
+      priceLevel: null,
       website: `https://www.google.com/search?q=${encodeURIComponent(mockPrefix + " " + cuisine + " restaurant " + addressCity)}`,
     },
     {
       name: `Tandoor & ${capitalizedCuisine} Bistro`,
       vicinity: `3.2 km away, Salt Lake Sector V, ${addressCity}`,
       rating: null,
+      reviewCount: null,
+      priceLevel: null,
       website: `https://www.google.com/search?q=${encodeURIComponent(cuisine + " restaurant Salt Lake " + addressCity)}`,
     },
     {
       name: `Bukhara ${capitalizedCuisine} House`,
       vicinity: `5.4 km away, Gariahat Crossing, ${addressCity}`,
       rating: null,
+      reviewCount: null,
+      priceLevel: null,
       website: `https://www.google.com/search?q=${encodeURIComponent("Bukhara " + cuisine + " restaurant " + addressCity)}`,
     },
   ];
@@ -105,16 +122,18 @@ async function fetchFromGeoapify(
 
     const name: string = props.name;
     const vicinity = props.formatted || props.street || `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`;
-    // Geoapify does not supply customer review ratings. The reference project
-    // filled the gap with `4.1 + Math.random() * 0.8` -- a randomly invented
-    // number rendered to users as a customer rating, which is the same class
-    // of fabrication as the old app's hardcoded "delivery prices" (removed for
-    // exactly this reason). A real restaurant judged by a dice roll is worse
-    // than no rating at all, so this is null and the UI omits the field.
+    // Geoapify does not supply customer review ratings or price level. The
+    // reference project filled the gap with `4.1 + Math.random() * 0.8` --
+    // a randomly invented number rendered to users as a customer rating,
+    // the same class of fabrication as the old app's hardcoded "delivery
+    // prices" (removed for exactly this reason). This path is now only
+    // reached when Google Places itself failed, so real ratings are still
+    // possible via the cache/Google steps above it -- but Geoapify's own
+    // results stay honest: null, not invented.
     const rating = null;
     const website = props.website || `https://www.google.com/search?q=${encodeURIComponent(name + " restaurant")}`;
 
-    const record: Restaurant = { name, vicinity, rating, website };
+    const record: Restaurant = { name, vicinity, rating, reviewCount: null, priceLevel: null, website };
 
     const lowerName = name.toLowerCase();
     const tags = props.catering?.cuisine?.toLowerCase() || "";
@@ -134,6 +153,8 @@ async function fetchFromGeoapify(
       name: g.name.toLowerCase().includes(cleanCuisine) ? g.name : `${g.name} (${capitalizedCuisine} Choice)`,
       vicinity: g.vicinity,
       rating: g.rating,
+      reviewCount: g.reviewCount,
+      priceLevel: g.priceLevel,
       website: g.website,
     });
   }
@@ -141,7 +162,7 @@ async function fetchFromGeoapify(
   return combined.slice(0, 6);
 }
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   const limit = rateLimit(request, "find-restaurants", RATE_LIMIT_PER_WINDOW);
   if (!limit.ok) return tooManyRequests(limit.retryAfterSeconds);
 
@@ -163,21 +184,76 @@ export const POST: APIRoute = async ({ request }) => {
     );
   }
 
-  const apiKey = import.meta.env.GEOAPIFY_API_KEY;
-  if (apiKey) {
+  // Step 1: the cache. A hit here is free -- no paid API call at all.
+  // Wrapped in try/catch because migration 0018 may not be applied yet on
+  // some environments (same "never let optional infra take down the real
+  // feature" rule sponsored-restaurants.ts follows) -- an unrecognised
+  // table/function just falls through to Google Places as if the cache
+  // were empty.
+  const supabase = createSupabaseServerClient(request, cookies);
+  try {
+    const cached = await readRestaurantCache(supabase, cuisine, latitude, longitude);
+    if (cached.length >= 3) {
+      const restaurants: Restaurant[] = cached.map((r) => ({
+        name: r.name,
+        vicinity: r.address ?? `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`,
+        rating: r.rating,
+        reviewCount: r.reviewCount,
+        priceLevel: r.priceLevel,
+        website: r.website ?? r.mapsUrl,
+      }));
+      return json({ restaurants, source: "cache" });
+    }
+  } catch (err) {
+    console.error("[find-restaurants] cache read failed, continuing to Google Places:", err);
+  }
+
+  // Step 2: live Google Places, the real-ratings source. Writes back to the
+  // cache (best-effort, never blocks the response -- see writeRestaurantCache).
+  const googleKey = import.meta.env.GOOGLE_PLACES_API_KEY;
+  if (googleKey) {
     try {
-      const restaurants = await fetchFromGeoapify(cuisine, latitude, longitude, apiKey);
+      const places = await fetchFromGooglePlaces(cuisine, latitude, longitude, googleKey);
+      if (places.length > 0) {
+        void writeRestaurantCache(supabase, cuisine, places).catch((err) => {
+          console.error("[find-restaurants] cache write failed:", err);
+        });
+        const restaurants: Restaurant[] = places.map((p) => ({
+          name: p.name,
+          vicinity: p.address ?? `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`,
+          rating: p.rating,
+          reviewCount: p.reviewCount,
+          priceLevel: p.priceLevel,
+          website: p.website ?? p.mapsUrl,
+        }));
+        return json({ restaurants, source: "google" });
+      }
+    } catch (err) {
+      // Never surfaced to the caller: an error message here could carry
+      // request details. Logged only, same rule as the Geoapify path below.
+      console.error("[find-restaurants] Google Places search failed, falling back to Geoapify:", err);
+    }
+  } else {
+    console.warn("[find-restaurants] GOOGLE_PLACES_API_KEY not configured, falling back to Geoapify");
+  }
+
+  // Step 3: Geoapify -- real listings, no ratings (see fetchFromGeoapify's
+  // own comment). Only reached if Google Places is unconfigured or failed.
+  const geoapifyKey = import.meta.env.GEOAPIFY_API_KEY;
+  if (geoapifyKey) {
+    try {
+      const restaurants = await fetchFromGeoapify(cuisine, latitude, longitude, geoapifyKey);
       if (restaurants.length > 0) {
         return json({ restaurants, source: "geoapify" });
       }
     } catch (err) {
-      // Never surfaced to the caller: the thrown message can carry the
-      // Geoapify request URL, and that URL carries the API key.
       console.error("[find-restaurants] Geoapify search failed, using mock fallback:", err);
     }
   } else {
     console.warn("[find-restaurants] GEOAPIFY_API_KEY not configured, using mock fallback");
   }
 
+  // Step 4: the mock data. Every step above failed or is unconfigured --
+  // this is what keeps the endpoint from ever hard-failing the caller.
   return json({ restaurants: mockRestaurants(cuisine, latitude, longitude), source: "mock" });
 };
