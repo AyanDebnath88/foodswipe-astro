@@ -49,6 +49,15 @@ export async function readRestaurantCache(
 ): Promise<CachedRestaurant[]> {
   const cutoff = new Date(Date.now() - CACHE_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
+  // Fetch a wider candidate pool than the final 12 returned. Ranking a
+  // verified-menu restaurant above one without only works if it's still IN
+  // the set by the time the menu-aware sort below runs -- ordering by
+  // rating and slicing to 12 at the SQL level first, before that sort ever
+  // sees the rows, would silently cut a lower-rated-but-verified restaurant
+  // for one with a higher rating but no menu data at all (caught live: a
+  // real 12-dish menu existed for a restaurant that then never showed up
+  // because enough OTHER cached restaurants outranked it on raw rating
+  // alone before this function got a chance to reprioritize).
   const { data, error } = await supabase
     .from("restaurants")
     .select("id, name, address, rating, review_count, price_level, website, maps_url, cuisine_tags")
@@ -59,7 +68,7 @@ export async function readRestaurantCache(
     .contains("cuisine_tags", [cuisine.toLowerCase()])
     .gte("last_synced_at", cutoff)
     .order("rating", { ascending: false, nullsFirst: false })
-    .limit(12);
+    .limit(40);
 
   if (error || !data || data.length === 0) return [];
 
@@ -87,12 +96,14 @@ export async function readRestaurantCache(
     menuPreview: menuByRestaurant.get(row.id as string) ?? [],
   }));
 
-  return withMenus.sort((a, b) => {
-    if (a.menuPreview.length > 0 !== b.menuPreview.length > 0) {
-      return a.menuPreview.length > 0 ? -1 : 1;
-    }
-    return (b.rating ?? -1) - (a.rating ?? -1);
-  });
+  return withMenus
+    .sort((a, b) => {
+      if (a.menuPreview.length > 0 !== b.menuPreview.length > 0) {
+        return a.menuPreview.length > 0 ? -1 : 1;
+      }
+      return (b.rating ?? -1) - (a.rating ?? -1);
+    })
+    .slice(0, 12);
 }
 
 /**

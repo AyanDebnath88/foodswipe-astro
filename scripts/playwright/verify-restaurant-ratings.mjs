@@ -3,12 +3,7 @@ import { openSession, login, closeAll, BASE_URL } from "./multi-session.mjs";
 const KOLKATA = { latitude: 22.5726, longitude: 88.3639 };
 
 const ava = await openSession("ava-ratings-check");
-await ava.context.grantPermissions(["geolocation"], { origin: BASE_URL });
-await ava.context.setGeolocation(KOLKATA);
-
 const ben = await openSession("ben-ratings-check");
-await ben.context.grantPermissions(["geolocation"], { origin: BASE_URL });
-await ben.context.setGeolocation(KOLKATA);
 
 await login(ava, "foodswipe.tester.a@gmail.com", "FoodSwipeTest!2026");
 await ava.shot("rooms-dashboard");
@@ -30,11 +25,24 @@ await ava.page.waitForURL(/\/swipe/, { timeout: 10000 });
 await ben.page.goto(`${BASE_URL}/swipe?room=${roomCode}`, { waitUntil: "networkidle" });
 await ava.shot("swipe-deck");
 
+// The visible round Heart button (aria-label="Like this cuisine"), not the
+// hidden #cuisine-swipe-right-btn dispatch proxy every other script here
+// uses. That hidden-button approach hung `page.dispatchEvent()` specifically
+// on this script five runs in a row, even after confirming via
+// locator().count()/evaluate() that the element genuinely exists in the DOM
+// at the exact moment of the failing call -- never fully root-caused, but
+// clicking the real button a user actually clicks sidesteps it entirely and
+// is arguably the more honest test anyway.
+async function swipeRight(page) {
+  await page.getByRole("button", { name: /Like this cuisine/i }).click();
+  await page.waitForTimeout(700);
+}
+
 let matched = false;
 for (let i = 0; i < 12 && !matched; i++) {
-  await ava.page.dispatchEvent("#cuisine-swipe-right-btn", "click");
-  await ben.page.dispatchEvent("#cuisine-swipe-right-btn", "click");
-  await ava.page.waitForTimeout(500);
+  await swipeRight(ava.page);
+  await swipeRight(ben.page);
+  await ava.page.waitForTimeout(400);
   if (/\/match\//.test(ava.page.url())) {
     await ava.page.waitForURL(/\/match\//, { timeout: 6000 }).catch(() => {});
     matched = true;
@@ -49,8 +57,9 @@ console.log("matched, url:", ava.page.url());
 await ava.page.waitForTimeout(1300); // let the celebration settle
 await ava.shot("match-reveal-settled");
 
-// Click through to real restaurant results -- geolocation is pre-granted
-// and mocked to Kolkata, so this resolves instantly without a real prompt.
+await ava.context.grantPermissions(["geolocation"], { origin: BASE_URL });
+await ava.context.setGeolocation(KOLKATA);
+
 const findBtn = ava.page.getByRole("button", { name: /Find restaurants near me/i });
 if (await findBtn.count()) {
   await findBtn.click();
