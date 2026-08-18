@@ -1,142 +1,221 @@
 @import "tailwindcss";
 
 /*
- * Brand tokens for the 2026-08-15 design pass -- "Modern Korean Bistro"
- * everyday palette, resolved from a hybrid direction the user picked after
- * reviewing three concrete mockups (see .claude/skills/build-log/SKILL.md,
- * "Design skills installed for the Design & assets phase" and the plan at
- * C:\Users\ajitd\.claude\plans\composed-finding-sutton.md for the full
- * resolution). Replaces the original salmon/peach/dusty-pink blueprint
- * palette (kept losslessly through Phase 0-5, never given real design
- * craft -- this is that craft pass).
+ * Design system v2 -- "full-bleed photography, ink pill + terracotta arrow
+ * CTA, small-caps data chips" (see _design-import-v2/delivery/tokens-v2.css,
+ * design-language-v2.md, rationale.md for the source spec and every number
+ * below). Replaces the v1 "Modern Korean Bistro" pass wholesale: v1's
+ * unprefixed :root block and its --fs-* layer (which was authored but never
+ * wired into @theme -- dead vocabulary) are both gone. Everything below is
+ * --fs-*, ported 1:1 from tokens-v2.css's --v-* names, and the semantic
+ * subset IS wired into @theme inline this time so bg-primary/text-foreground/
+ * etc. resolve to it directly.
  *
- * HSL raw values live on :root (mirrors the old shadcn-style
- * `hsl(var(--x))` indirection) and are mapped into Tailwind v4's @theme so
- * utilities like bg-primary, text-accent-foreground, font-headline are
- * generated automatically.
- *
- *   Background (ivory):    #FBF3EC -> hsl(28 65% 95%)
- *   Foreground (ink):      #1C1410 -> hsl(20 27% 9%)  -- true near-black,
- *     not the old soft brown. This is where "deep blacks" lives in the
- *     everyday palette: as ink, never as a background.
- *   Primary (terracotta):  #D97757 -> hsl(15 63% 60%)
- *   Secondary (sage):      #9CAE8C -> hsl(92 17% 62%)
- *   Accent (gold):         #E8C87E -> hsl(42 70% 70%)
- *   Card (warm white):     #FEFCF9 -> hsl(36 71% 99%)
- *
- * IMPORTANT: the match-reveal celebration moment (void backdrop + neon
- * glow, the "Hongdae Neon" half of the hybrid direction) is deliberately
- * NOT here. Those tokens are scoped to .match-reveal-scope near the bottom
- * of this file and are never added to @theme inline -- see that section's
- * comment for why. The everyday app must never accidentally pick up the
- * celebration palette; that boundary is the actual design decision.
+ * All color tokens are flat hex, not HSL triples -- v1's `hsl(var(--x))`
+ * indirection is gone. Anywhere a component still writes hsl(var(--foo)),
+ * it's stale and needs to read var(--fs-foo) directly instead.
  */
 
 :root {
-  --background: 28 65% 95%;
-  --foreground: 20 27% 9%;
+  /* ---- surfaces ---- */
+  --fs-cream:        #F7F1E8;  /* app canvas */
+  --fs-cream-tint:   #F1E9DD;  /* secondary button, nested tint */
+  --fs-cream-sunk:   #EFE3D5;  /* disabled fill */
+  --fs-card:         #FFFFFF;
+  --fs-ink:          #171310;  /* nav bar, CTA pill, celebration ground */
 
-  --card: 36 71% 99%;
-  --card-foreground: 20 27% 9%;
+  /* ---- accents (one job each) ---- */
+  --fs-terracotta:       #C4562F;  /* ICON-ONLY surfaces: arrow circle, heart, dots. 4.23:1 -- too low for labels */
+  --fs-terracotta-text:  #B14A26;  /* any fill carrying a text label: #FFF8F2 on it = 4.9:1 */
+  --fs-terracotta-hover: #9F4021;
+  --fs-terracotta-deep:  #A8401F;  /* celebration gradient bottom */
+  --fs-terracotta-lift:  #D9663A;  /* celebration gradient top */
+  --fs-forest:           #2F6B42;  /* confirmed / mode chips */
+  --fs-forest-tint:      #E7F0E9;
+  --fs-forest-ink:       #245333;
+  --fs-gold:             #E9C23F;  /* value + distance chips, notices, celebration eyebrow */
+  --fs-gold-tint:        #FBF2DC;
+  --fs-gold-line:        #F0DFB4;
+  --fs-destructive:      #A6503A;  /* confirm dialogs only */
 
-  --popover: 36 71% 99%;
-  --popover-foreground: 20 27% 9%;
+  /* ---- text ---- */
+  /* ratios computed against --fs-cream #F7F1E8 unless noted */
+  --fs-text:        #171310;  /* 16.5:1 */
+  --fs-text-2:      #3D362E;  /* 11.6:1 */
+  --fs-text-3:      #574E43;  /*  7.3:1 -- body */
+  --fs-text-4:      #6B6155;  /*  5.4:1 */
+  --fs-text-5:      #7A6E5E;  /*  4.6:1 -- smallest AA-passing muted text, any size */
+  --fs-text-6:      #8A7B67;  /*  3.6:1 -- AA large-text only (>=24px or >=18.66px bold) */
+  --fs-placeholder: #7A6E5E;  /*  4.6:1 -- placeholders are content, must pass AA */
+  --fs-on-ink:      #FFF8F2;  /* 17.6:1 on ink, 4.9:1 on terracotta-text, 6.0:1 on forest */
+  --fs-on-gold:     #171310;  /* 10.8:1 -- gold NEVER carries white */
+  --fs-on-dark-2:   #EBDFD2;  /* supporting copy over scrim, 14.1:1 */
+  --fs-on-dark-3:   #E4D8CB;  /* card body over scrim, 12.5:1 */
+  --fs-on-dark-4:   #C6B8AB;  /* tertiary over scrim, 9.5:1 */
 
-  --primary: 15 63% 60%;
-  --primary-foreground: 36 71% 99%;
+  /* ---- lines ---- */
+  --fs-line:        #E7DDCF;  /* card borders, list rules */
+  --fs-line-strong: #DFD5C6;  /* input rest, device edge */
+  --fs-line-faint:  #EFE7DA;  /* internal dividers */
 
-  --secondary: 92 17% 62%;
-  --secondary-foreground: 20 27% 9%;
+  /* ---- photography scrims (CSS only, never baked into the asset) ---- */
+  --fs-scrim-vertical: linear-gradient(to top, rgba(23,19,16,.86) 0%, rgba(23,19,16,.42) 46%, rgba(23,19,16,0) 100%);
+  --fs-scrim-card:     linear-gradient(to top, rgba(23,19,16,.90) 0%, rgba(23,19,16,.24) 46%, rgba(23,19,16,.40) 100%);
+  --fs-scrim-hero-d:   linear-gradient(100deg, rgba(23,19,16,.90) 0%, rgba(23,19,16,.66) 42%, rgba(23,19,16,.12) 78%, rgba(23,19,16,0) 100%);
+  --fs-glass:          rgba(255,248,242,.18);  /* on-photo chips; add 6px blur */
+  --fs-glass-line:     rgba(255,248,242,.34);
+  /* rule: >=300px of usable scrim at the bottom of any full-bleed image; never scrim >60% of height */
 
-  --muted: 29 53% 92%;
-  --muted-foreground: 27 14% 37%;
+  /* ---- radius: five steps tied to meaning, not size ---- */
+  --fs-r-pill:   999px;
+  --fs-r-chip:   5px;    /* data chips */
+  --fs-r-sm:     14px;   /* rail rows */
+  --fs-r-md:     18px;   /* inputs, notices */
+  --fs-r-lg:     22px;   /* small cards, panels */
+  --fs-r-xl:     24px;   /* panels, result cards */
+  --fs-r-2xl:    28px;   /* swipe + discovery cards */
+  --fs-r-logo:   30px;
+  --fs-r-device: 46px;
 
-  --accent: 42 70% 70%;
-  --accent-foreground: 20 27% 9%;
+  /* ---- elevation: one ambient shadow per floating element; photos never carry shadow ---- */
+  --fs-e-0: 0 1px 2px rgba(23,19,16,.05);
+  --fs-e-1: 0 10px 20px -12px rgba(23,19,16,.30);
+  --fs-e-2: 0 2px 4px rgba(23,19,16,.08), 0 28px 52px -22px rgba(23,19,16,.42);
+  --fs-e-float:   0 12px 30px -12px rgba(23,19,16,.55);   /* nav pill, CTA pill */
+  --fs-e-primary: 0 14px 28px -10px rgba(196,86,47,.60);
+  --fs-e-device:  0 2px 4px rgba(23,19,16,.05), 0 34px 64px -30px rgba(23,19,16,.40);
 
-  --destructive: 4 54% 49%;
-  --destructive-foreground: 36 71% 99%;
+  /* ---- spacing (4px base) ---- */
+  --fs-1: 4px;  --fs-2: 8px;  --fs-3: 12px; --fs-4: 16px; --fs-5: 20px;
+  --fs-6: 24px; --fs-8: 32px; --fs-10: 40px; --fs-12: 48px; --fs-16: 64px;
+  --fs-pad-screen:  20px;       /* mobile */
+  --fs-pad-page:    40px;       /* 1280-1439 */
+  --fs-pad-page-xl: 48px;       /* >=1440 */
+  --fs-pad-page-md: 32px;       /* 1024-1279 */
+  --fs-gutter:      24px;
+  --fs-max-content: 1320px;
+  --fs-card-max:    480px;      /* swipe card cap on desktop */
+  --fs-form-max:    420px;
+  --fs-rail-left:   280px;
+  --fs-rail-right:  320px;
 
-  --border: 28 34% 84%;
-  --input: 28 34% 84%;
-  --ring: 17 68% 65%;
+  /* ---- nav + CTA geometry ---- */
+  --fs-nav-pill-h: 64px;   /* floating bottom pill (mobile) */
+  --fs-nav-inset:  20px;   /* left/right inset */
+  --fs-nav-bottom: 26px;   /* above home indicator */
+  --fs-nav-item:   88px;   /* x 48px hit box */
+  --fs-appbar-h:   68px;   /* desktop ink bar */
+  --fs-cta-h:      58px;   /* pill row height */
+  --fs-cta-arrow:  46px;   /* circle; 50px on desktop hover */
+  --fs-target-min: 44px;
+  --fs-swipe-like: 80px; --fs-swipe-pass: 68px; --fs-swipe-util: 56px;
+  --fs-thumb-clearance: 96px;  /* swipe controls sit clear of the nav pill */
 
-  --radius: 0.75rem;
+  /* ---- type ---- */
+  --fs-font-display:   "Archivo", system-ui, sans-serif;  /* 800, UPPERCASE, ls -.025 to -.04em */
+  --fs-font-editorial: "Fraunces", Georgia, serif;         /* 600, dish name + section titles only */
+  --fs-font-body:      "Inter", system-ui, sans-serif;
+  --fs-t-hero-d:  82px;  /* desktop celebration / marketing H1, lh .88 */
+  --fs-t-hero:    56px;  /* mobile hero + cuisine title, lh .90 */
+  --fs-t-h1:      44px;
+  --fs-t-h2:      32px;
+  --fs-t-dish:    40px;  /* Fraunces 600 */
+  --fs-t-h3:      22px;
+  --fs-t-lg:      18px;
+  --fs-t-body:    16px;
+  --fs-t-body-sm: 15.5px; /* lh 1.55 */
+  --fs-t-sm:      13.5px;
+  --fs-t-xs:      12.5px;
+  --fs-t-chip:    9.5px;  /* Archivo 700 caps, ls .12em */
+  --fs-t-label:   10.5px; /* Archivo 700 caps, ls .20em */
+  --fs-tracking-chip:    .12em;
+  --fs-tracking-label:   .20em;
+  --fs-tracking-eyebrow: .28em;
+
+  /* ---- breakpoints: 4 stops, no more ---- */
+  --fs-bp-sm: 375px;   /* single column, floating nav pill */
+  --fs-bp-md: 768px;   /* card capped + centred, roster becomes a strip */
+  --fs-bp-lg: 1120px;  /* three columns 280/1fr/320; nav pill -> ink app bar at 1024 */
+  --fs-bp-xl: 1440px;  /* pad 48, 1320 max */
+
+  /* ---- motion ---- */
+  --fs-dur-press:     120ms;
+  --fs-dur-fast:      150ms;
+  --fs-dur-hover:     160ms;
+  --fs-dur-base:      220ms;
+  --fs-dur-exit:      180ms;
+  --fs-dur-enter:     300ms;
+  --fs-dur-slow:      420ms;
+  --fs-dur-celebrate: 520ms;
+  --fs-stagger:       60ms;
+  --fs-skeleton-delay: 300ms;
+  --fs-toast-dwell:   4000ms;
+  --fs-ease-out:    cubic-bezier(.22, 1, .36, 1);
+  --fs-ease-spring: cubic-bezier(.34, 1.56, .64, 1);   /* overshoot: match heart + save heart only */
+  --fs-ease-exit:   cubic-bezier(.32, .72, 0, 1);
+  --fs-swipe-threshold: 96px;
+  --fs-swipe-stamp-in:  32px;
+  --fs-swipe-rotate-divisor: 18;   /* deg = dragX / 18, cap 12 */
+
+  --radius: 0.75rem; /* legacy alias some Tailwind arbitrary values may still reference during rollout */
 }
 
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  --color-background: var(--fs-cream);
+  --color-foreground: var(--fs-text);
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card: var(--fs-card);
+  --color-card-foreground: var(--fs-text);
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: var(--fs-card);
+  --color-popover-foreground: var(--fs-text);
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary: var(--fs-terracotta-text);
+  --color-primary-foreground: var(--fs-on-ink);
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: var(--fs-forest);
+  --color-secondary-foreground: var(--fs-on-ink);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: var(--fs-cream-tint);
+  --color-muted-foreground: var(--fs-text-3);
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: var(--fs-gold);
+  --color-accent-foreground: var(--fs-on-gold);
 
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive: var(--fs-destructive);
+  --color-destructive-foreground: var(--fs-on-ink);
 
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-border: var(--fs-line);
+  --color-input: var(--fs-line-strong);
+  --color-ring: var(--fs-terracotta);
 
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: var(--fs-r-xl);
+  --radius-md: var(--fs-r-lg);
+  --radius-sm: var(--fs-r-sm);
 
   /*
-   * Headline font: Fraunces (variable, serif). Body font: Inter (sans).
-   * Replaces Belleza/Alegreya, which were the old palette's pairing, not
-   * this one's. Fraunces is used deliberately for BOTH the everyday
-   * headline register (refined, editorial, Bistro-appropriate at normal
-   * weight) and the match-reveal celebration register (its wght/opsz axes
-   * flex bold/wide enough to carry sticker-badge/neon-moment energy) so the
-   * type system stays at 2 font files instead of 3. If the boldest Fraunces
-   * cut doesn't read as "neon-badge" energy against the celebration void
-   * backdrop once built, the documented fallback is a single condensed
-   * display face (e.g. Archivo Black) scoped ONLY to match-reveal badges/
-   * headline -- never loaded elsewhere. See BaseLayout.astro for the
-   * Google Fonts <link>.
-   *
-   * Inter is the body face: a swipe-heavy mobile app needs small-screen
-   * legibility more than serif character, which is a real shift from the
-   * original blueprint's serif-body Alegreya -- deliberate, not an oversight.
+   * Archivo (display, headings/labels/CTA) + Fraunces (editorial -- dish
+   * name and section titles only, demoted from the v1 all-purpose headline
+   * role) + Inter (body). See BaseLayout.astro for the Google Fonts <link>.
    */
-  --font-headline: "Fraunces", serif;
-  --font-body: "Inter", sans-serif;
+  --font-display: var(--fs-font-display);
+  --font-headline: var(--fs-font-editorial);
+  --font-body: var(--fs-font-body);
 }
 
 @layer base {
   * {
-    border-color: hsl(var(--border));
+    border-color: var(--fs-line);
   }
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: var(--fs-cream);
+    color: var(--fs-text);
   }
 }
 
 /*
- * Phase 2 (swipe deck): card-exit animations, ported from the reference
- * Next.js project's tailwind.config.ts `keyframes`/`animation` extension.
- * That project used Tailwind v3's JS config; this one is Tailwind v4
- * (CSS-first config via @theme above), which doesn't read tailwind.config.ts
- * at all -- so the same keyframes are defined as plain CSS here instead of
- * trying to route them through @theme (arbitrary multi-step keyframes don't
- * map cleanly onto @theme's single-value tokens).
+ * Card-exit animations (swipe deck). Unchanged mechanics from v1, kept as
+ * plain CSS since Tailwind v4's @theme can't express multi-step keyframes.
  */
 @keyframes swipe-out-left {
   from { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
@@ -147,19 +226,16 @@
   to { transform: translateX(200%) rotate(20deg) scale(0.8); opacity: 0; }
 }
 .animate-swipe-out-left {
-  animation: swipe-out-left 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: swipe-out-left 0.5s var(--fs-ease-out) forwards;
 }
 .animate-swipe-out-right {
-  animation: swipe-out-right 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: swipe-out-right 0.5s var(--fs-ease-out) forwards;
 }
 
 /*
- * Ken Burns motion for card photography (cuisine/subcuisine hero shots, dish
- * shots): a slow continuous zoom+drift so a static photo reads as alive
- * behind the swipe deck. Two alternating variants (drift toward opposite
- * corners) so adjacent cards in a stack don't all pan the same direction.
- * Long duration + ease-out-in-ish timing keeps it subtle rather than
- * distracting during the few seconds a card is actually looked at.
+ * Ken Burns motion for card photography: slow continuous zoom+drift so a
+ * static photo reads as alive behind the swipe deck. Two alternating
+ * variants so adjacent cards in a stack don't all pan the same direction.
  */
 @keyframes ken-burns-a {
   from { transform: scale(1) translate(0, 0); }
@@ -177,42 +253,11 @@
 }
 
 /*
- * MATCH-REVEAL CELEBRATION TOKENS -- scoped, not global. Do not use outside
- * .match-reveal-scope.
- *
- * REVISED by the Claude Design system pass (delivery/rationale.md item 9):
- * the original brief's neon pink/mint on #241220 read as a different product
- * dropped into the middle of this one, once seen in flow. The *decision* is
- * unchanged -- one bounded dark takeover, everything else stays light -- but
- * the accents now come from the everyday warm family instead of true neon:
- * void is a warm ink-brown (one step below --foreground, not a colour-wheel
- * jump), the glow source is an ember gradient, and the dish name sits in the
- * everyday gold. It still reads as a takeover; it no longer reads as a
- * different brand. Deliberately kept OUT of :root/@theme inline regardless --
- * that boundary (celebration tokens exist ONLY inside this class) is what
- * stops the takeover palette leaking into the everyday app, warm or neon.
- *
- * Usage: wrap the match-reveal celebration markup in a `.match-reveal-scope`
- * element, then reference these as plain CSS vars, typically via Tailwind
- * arbitrary values (`bg-[hsl(var(--void))]`) from within that scope only.
- */
-.match-reveal-scope {
-  --void: 15 24% 13%;         /* #2A1A16 -- warm ink-brown, one step below --foreground */
-  --ember: 20 76% 66%;        /* #E8875F -- badge/glow gradient top */
-  --ember-deep: 13 55% 51%;   /* #C05F3F -- badge/glow gradient bottom */
-  --celebrate-accent: 42 70% 70%; /* #E8C87E -- the everyday gold, 11.1:1 on void */
-  --void-ink: 24 100% 97%;    /* #FFF8F2 -- primary text on void, 15.2:1 */
-  --void-ink-2: 25 39% 81%;   /* #E3CDBE -- secondary text on void, 8.4:1 */
-}
-
-/*
- * Celebration entrance (Phase D, match-reveal.tsx's void+neon takeover) --
- * an orchestrated stagger, not everything appearing at once: backdrop, then
- * the heart badge (with a glow pulse baked into its own entrance rather than
- * a separate looping pulse -- a badge that never stops glowing reads as a
- * loading spinner, not a celebration), then heading, then subtext. Each
- * layer is the same class with a different `--stagger-delay` custom
- * property so the JSX doesn't need four near-duplicate keyframe blocks.
+ * Match-reveal celebration entrance. v2 folds the celebration into the main
+ * ink/terracotta/gold palette (rationale.md #9 / design-language-v2.md) --
+ * there is no more separate .match-reveal-scope void palette; match-reveal.tsx
+ * references --fs-ink / --fs-terracotta-lift / --fs-terracotta-deep / --fs-gold
+ * directly. Only the staggered-entrance keyframes stay scoped to this file.
  */
 @keyframes celebration-backdrop-in {
   from { opacity: 0; }
@@ -223,15 +268,15 @@
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes celebration-heart-in {
-  0% { opacity: 0; transform: scale(0.5); box-shadow: 0 0 0 hsl(var(--ember) / 0); }
-  60% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 40px hsl(var(--ember) / 0.65); }
-  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 24px hsl(var(--ember) / 0.55); }
+  0% { opacity: 0; transform: scale(0.5); box-shadow: 0 0 0 rgba(196,86,47,0); }
+  60% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 40px rgba(196,86,47,.65); }
+  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 24px rgba(196,86,47,.55); }
 }
 .animate-celebration-backdrop {
   animation: celebration-backdrop-in 0.5s ease-out both;
 }
 .animate-celebration-heart {
-  animation: celebration-heart-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: celebration-heart-in 0.6s var(--fs-ease-out) both;
   animation-delay: var(--stagger-delay, 0.15s);
 }
 .animate-celebration-rise {
@@ -240,11 +285,8 @@
 }
 
 /*
- * Light page-load stagger (Phase D) -- swipe.astro had zero page-load
- * animation before this; a small rise-in on the first card + the like/pass
- * controls is a net gain without turning into a whole page-transition
- * system (explicitly out of scope, see the design plan's "Motion beyond
- * cards" section).
+ * Light page-load stagger: a small rise-in on the first card + the like/pass
+ * controls, not a full page-transition system.
  */
 @keyframes page-load-rise-in {
   from { opacity: 0; transform: translateY(16px); }
@@ -256,13 +298,12 @@
 }
 
 /*
- * prefers-reduced-motion override for every animation this app ships --
- * swipe-out, Ken Burns, the celebration entrance, and the page-load stagger
- * alike. One rule dropping every animation/transition to near-instant
- * (0.01ms, not 0s -- some browsers/testing tools treat a 0s animation as
- * "never ran" and skip its associated events/callbacks) rather than a
- * per-class override, so a future animation class added here is covered
- * automatically instead of silently missing this.
+ * prefers-reduced-motion override for every animation this app ships. One
+ * rule dropping every animation/transition to near-instant (0.01ms, not 0s
+ * -- some browsers/testing tools treat a 0s animation as "never ran" and
+ * skip its associated events/callbacks) so a future animation class is
+ * covered automatically instead of silently missing this. Drag stays 1:1
+ * (direct manipulation, not animated) per tokens-v2.css's own note.
  */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -272,125 +313,5 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
-  }
-}
-
-/*
- * ============================================================================
- * CLAUDE DESIGN SYSTEM PASS -- everything below is new, delivered as a zip
- * (delivery/tokens.css, rationale.md; see .claude/skills/build-log/SKILL.md
- * for the full brief this was built against). --fs-* prefix throughout,
- * deliberately not merged into the unprefixed :root tokens above or into
- * @theme inline -- these are additive vocabulary (spacing/radius/elevation/
- * state colors/motion durations) for INCREMENTAL adoption via Tailwind
- * arbitrary values (`rounded-[var(--fs-r-2xl)]`, `shadow-[var(--fs-e-1)]`),
- * not a replacement for the existing --background/--primary/etc tokens or a
- * remap of Tailwind's own rounded-2xl/etc scale. Remapping the latter would
- * silently reskin every *existing* use of e.g. `rounded-2xl` app-wide,
- * including ones that were never meant to be a discovery-card radius (most
- * of this app's buttons already use rounded-2xl as a *button* radius, which
- * this system gives its own smaller value, --fs-r-md). Adopt --fs-* deliberately,
- * component by component; nothing here changes existing rendering until used.
- * ============================================================================
- */
-:root {
-  /* derived neutrals (sampled off the existing ink/bg, no new hue) */
-  --fs-ink-2:         #4A3B31;  /* body on ivory      9.1:1  */
-  --fs-ink-3:         #6B5749;  /* secondary text     6.2:1  */
-  --fs-ink-4:         #8A7462;  /* meta, >=16px/bold  4.6:1  */
-  --fs-ink-5:         #A8927E;  /* placeholders only         */
-  --fs-line:          #E7DACD;
-  --fs-line-soft:     #EFE3D6;
-  --fs-line-strong:   #E2D2C1;
-  --fs-surface-sunk:  #F2E9DC;
-  --fs-surface-notice:#F4EDE1;
-
-  /* state colors */
-  --fs-primary-hover:    #C86A4B;
-  --fs-primary-active:   #C05F3F;
-  --fs-primary-disabled: #E7C8B9;
-  --fs-on-primary:       #FFF6F0;
-  --fs-on-primary-muted: #A38676;
-  --fs-on-secondary:     #1C2A18;
-  --fs-on-accent:        #1C1410;
-  --fs-success-bg:       #EDF1E8;
-  --fs-success-line:     #D3DEC6;
-  --fs-success-ink:      #3F4E31;
-  --fs-match-bg:         #E9EFE3;
-  --fs-match-line:       #CBD8BE;
-  --fs-match-ink:        #43552F;
-  --fs-attention-line:   #C08A6E;
-  --fs-destructive:      #A6503A;  /* confirm-dialog action ONLY -- see rationale.md #13 */
-  --fs-skeleton:         #F2E9DC;
-  --fs-focus-ring:       0 0 0 3px rgba(217,119,87,.18);
-
-  /* spacing (4px base) + breakpoints */
-  --fs-1: 4px;  --fs-2: 8px;  --fs-3: 12px; --fs-4: 16px;
-  --fs-5: 20px; --fs-6: 24px; --fs-8: 32px; --fs-10: 40px;
-  --fs-14: 56px; --fs-18: 72px;
-  --fs-pad-screen-mobile: 20px;
-  --fs-pad-screen-desktop: 40px;
-  --fs-gutter-desktop: 24px;
-  --fs-max-content: 1240px;
-  --fs-bp-sm: 375px; --fs-bp-md: 768px; --fs-bp-lg: 1120px; --fs-bp-xl: 1440px;
-  --fs-nav-height: 62px;
-  --fs-nav-inset: 26px;
-  --fs-thumb-clearance: 96px;
-  --fs-card-max: 460px;
-  --fs-form-max: 420px;
-
-  /* radius -- five steps tied to meaning, not size (rationale.md #1) */
-  --fs-r-pill:  999px;  /* transient/labels */
-  --fs-r-xs:    8px;    /* badges */
-  --fs-r-sm:    14px;   /* rows, small controls */
-  --fs-r-md:    16px;   /* buttons, inputs */
-  --fs-r-lg:    18px;   /* utility cards */
-  --fs-r-xl:    22px;   /* panels */
-  --fs-r-2xl:   28px;   /* swipe + discovery cards */
-  --fs-r-sheet: 32px;   /* bottom sheets */
-  --fs-r-device:44px;
-
-  /* elevation -- warm-tinted only, never neutral black */
-  --fs-e-0: 0 1px 2px rgba(28,20,16,.05);
-  --fs-e-1: 0 1px 2px rgba(28,20,16,.06), 0 10px 20px -10px rgba(28,20,16,.25);
-  --fs-e-2: 0 2px 4px rgba(28,20,16,.06), 0 18px 36px -16px rgba(28,20,16,.28);
-  --fs-e-primary: 0 2px 4px rgba(217,119,87,.25), 0 12px 24px -12px rgba(217,119,87,.55);
-  --fs-e-sheet: 0 -12px 32px -16px rgba(28,20,16,.22);
-  --fs-e-glow:  0 0 44px -6px rgba(217,119,87,.6);
-
-  /* type scale -- families unchanged (Fraunces/Inter), mobile / desktop pairs */
-  --fs-t-celebrate: 46px;  --fs-t-celebrate-d: 76px;
-  --fs-t-h1:        32px;  --fs-t-h1-d:        44px;
-  --fs-t-card:      34px;  --fs-t-card-d:      40px;
-  --fs-t-h2:        20px;  --fs-t-h2-d:        22px;
-  --fs-t-lg:        16.5px;
-  --fs-t-body:      15px;
-  --fs-t-sm:        13.5px;
-  --fs-t-xs:        12.5px;
-  --fs-t-caps:      11.5px;
-
-  /* motion -- one vocabulary, three durations (rationale.md #5) */
-  --fs-dur-instant:   120ms;
-  --fs-dur-fast:      150ms;
-  --fs-dur-base:      220ms;
-  --fs-dur-exit:      180ms;
-  --fs-dur-enter:     300ms;
-  --fs-dur-slow:      420ms;
-  --fs-dur-celebrate: 520ms;
-  --fs-ease-out:    cubic-bezier(.22, 1, .36, 1);
-  --fs-ease-spring: cubic-bezier(.34, 1.56, .64, 1);  /* overshoot: pops only */
-  --fs-ease-exit:   cubic-bezier(.32, .72, 0, 1);
-  --fs-stagger:     60ms;
-  --fs-skeleton-delay: 300ms;
-  --fs-toast-dwell: 4000ms;
-  --fs-swipe-threshold: 96px;
-  --fs-swipe-stamp-in:  32px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --fs-dur-instant: 1ms; --fs-dur-fast: 1ms; --fs-dur-base: 1ms;
-    --fs-dur-exit: 150ms; --fs-dur-enter: 150ms; --fs-dur-slow: 150ms;
-    --fs-dur-celebrate: 150ms; --fs-stagger: 0ms;
   }
 }

@@ -86,7 +86,7 @@ export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCar
         zIndex,
         touchAction: isActive ? "none" : "auto",
       }}
-      className={`absolute w-full h-full max-w-sm max-h-72 rounded-2xl shadow-2xl overflow-hidden bg-gradient-to-br from-accent/70 via-primary/60 to-secondary/70 ${
+      className={`absolute w-full h-full max-w-sm md:max-w-[var(--fs-card-max)] max-h-72 md:max-h-96 rounded-[var(--fs-r-2xl)] shadow-[var(--fs-e-2)] overflow-hidden bg-[var(--fs-ink)] ${
         isActive ? "cursor-grab" : ""
       } ${animationClass}`}
     >
@@ -101,35 +101,38 @@ export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCar
           />
         ) : (
           <div className="flex-1 flex items-center justify-center select-none">
-            <UtensilsCrossed className="h-16 w-16 text-white/90 drop-shadow" aria-hidden="true" />
+            <UtensilsCrossed className="h-16 w-16 text-[var(--fs-on-ink)]/90 drop-shadow" aria-hidden="true" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+        <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
+        <div className="absolute bottom-0 left-0 right-0 p-6 text-[var(--fs-on-ink)]">
           {dish.isTopPick && (
-            <Badge className="mb-2 backdrop-blur-sm">
+            <Badge variant="glass" className="mb-2">
               <Sparkles className="w-3 h-3" />
               Top Pick
             </Badge>
           )}
-          <h2 className="text-3xl font-headline font-bold">{dish.name}</h2>
-          {dish.description && <p className="text-sm mt-1 text-white/90">{dish.description}</p>}
+          {/* Dish name stays Fraunces -- the one warm, human word on the screen (design-language-v2.md). */}
+          <h2 className="font-headline text-[length:var(--fs-t-dish)] font-semibold tracking-[-.015em]">
+            {dish.name}
+          </h2>
+          {dish.description && <p className="text-sm mt-1 text-[var(--fs-on-dark-3)]">{dish.description}</p>}
         </div>
         {isActive && (
           <>
             <div
-              className={`absolute top-8 left-8 text-destructive text-2xl font-bold border-2 border-destructive rounded-xl px-4 py-1 transform -rotate-12 transition-opacity ${
+              className={`absolute top-8 left-8 text-[var(--fs-on-ink)] text-2xl font-display font-extrabold uppercase border-2 border-[var(--fs-destructive)] bg-[var(--fs-destructive)]/80 rounded-[var(--fs-r-sm)] px-4 py-1 transform -rotate-12 transition-opacity ${
                 pos.x < -10 ? "opacity-100" : "opacity-0"
               }`}
             >
-              NOPE
+              Nope
             </div>
             <div
-              className={`absolute top-8 right-8 text-primary text-2xl font-bold border-2 border-primary rounded-xl px-4 py-1 transform rotate-12 transition-opacity bg-black/20 ${
+              className={`absolute top-8 right-8 text-[var(--fs-on-ink)] text-2xl font-display font-extrabold uppercase border-2 border-[var(--fs-terracotta)] bg-[var(--fs-terracotta)]/80 rounded-[var(--fs-r-sm)] px-4 py-1 transform rotate-12 transition-opacity ${
                 pos.x > 10 ? "opacity-100" : "opacity-0"
               }`}
             >
-              LIKE
+              Like
             </div>
           </>
         )}

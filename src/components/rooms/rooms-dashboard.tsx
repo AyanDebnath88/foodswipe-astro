@@ -14,8 +14,9 @@
 // brief in .claude/skills/build-log/SKILL.md): no new UI-primitive
 // dependency for one page's worth of chrome.
 import React, { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, CtaArrow } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -31,7 +32,7 @@ import {
   type Participant,
   type RoomState,
 } from "@/lib/rooms";
-import { Users, Copy, Plus, LogIn, ArrowRight, UserPlus, Play, Loader2, LogOut, Link2 } from "lucide-react";
+import { Users, Copy, Plus, LogIn, UserPlus, Loader2, LogOut, Link2 } from "lucide-react";
 import { errorMessage } from "@/lib/errors";
 import { consumeNotice, currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
 
@@ -270,9 +271,9 @@ export function RoomsDashboard() {
                   diners swipe right on the same cuisine!
                 </p>
               </div>
-              <Button onClick={handleCreateRoom} disabled={isLoading} className="w-full h-12 text-md rounded-2xl">
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-                Host Dining Room
+              <Button variant="cta" onClick={handleCreateRoom} disabled={isLoading}>
+                <span>{isLoading ? "Creating..." : "Host Dining Room"}</span>
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <CtaArrow />}
               </Button>
             </div>
           </div>
@@ -350,9 +351,9 @@ export function RoomsDashboard() {
             <div className="py-6 px-6">
               <h3 className="text-xl font-headline flex items-center justify-between">
                 <span>Diners Joined ({participants.length})</span>
-                <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-body font-semibold">
+                <Badge variant={participants.length >= 2 ? "done" : "distance"}>
                   {participants.length >= 2 ? "Ready to Swipe" : "Waiting for Friends"}
-                </span>
+                </Badge>
               </h3>
 
               <div className="space-y-3 mt-4">
@@ -370,18 +371,18 @@ export function RoomsDashboard() {
                           {participant.displayName}
                         </span>
                         {participant.id === activeRoom.creatorId && (
-                          <span className="text-[10px] bg-amber-500/20 text-amber-600 px-2 py-0.5 rounded-md font-bold font-body ml-2 uppercase">
+                          <Badge variant="distance" className="ml-2">
                             Host
-                          </span>
+                          </Badge>
                         )}
                         {participant.isGuest && (
-                          <span className="text-[10px] bg-black/10 text-muted-foreground px-2 py-0.5 rounded-md font-bold font-body ml-2 uppercase">
+                          <Badge variant="sponsored" className="ml-2">
                             Guest
-                          </span>
+                          </Badge>
                         )}
                       </div>
                     </div>
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[var(--fs-forest)] animate-pulse" />
                   </div>
                 ))}
               </div>
@@ -407,10 +408,9 @@ export function RoomsDashboard() {
                 <LogOut className="h-4 w-4" />
                 Leave Room
               </Button>
-              <Button onClick={handleStartSwiping} className="w-full h-12 text-md rounded-2xl flex gap-2 flex-1">
-                <Play className="h-5 w-5" />
-                Start Swiping Together
-                <ArrowRight className="h-4 w-4 ml-1" />
+              <Button variant="cta" onClick={handleStartSwiping} className="flex-1">
+                <span>Start Swiping Together</span>
+                <CtaArrow />
               </Button>
             </div>
           </div>

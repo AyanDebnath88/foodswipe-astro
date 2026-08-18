@@ -27,6 +27,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { fetchRoomProgress, relativeTime, type AgreedDish, type RoomProgress } from "@/lib/history";
 import { subscribeToRoom } from "@/lib/rooms";
 import { Users, Clock, CircleDashed, CircleCheck, ArrowRight, Utensils } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export interface RoomProgressPanelProps {
   sessionId: string;
@@ -72,7 +73,7 @@ export function RoomProgressPanel({
   const waiting = progress?.waitingOnNames ?? [];
 
   return (
-    <div className="rounded-2xl border border-black/5 bg-accent/20 p-4">
+    <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-accent/20 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="inline-flex items-center gap-2 font-body text-sm font-medium text-foreground">
           <Users className="h-4 w-4 text-muted-foreground" />
@@ -80,7 +81,7 @@ export function RoomProgressPanel({
         </p>
         <a
           href={resumeHref}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-[var(--fs-r-pill)] bg-primary px-3 font-body text-sm font-medium text-primary-foreground transition-colors hover:bg-[var(--fs-terracotta-hover)]"
         >
           {matchedCuisineId ? "Pick dishes" : "Catch up on swiping"}
           <ArrowRight className="h-4 w-4" />
@@ -98,12 +99,11 @@ export function RoomProgressPanel({
       {agreedDishes.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {agreedDishes.map((dish) => (
-            <li
-              key={`${dish.restaurantName}::${dish.dishName}`}
-              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 font-body text-xs text-foreground"
-            >
-              <Utensils className="h-3 w-3 text-primary" />
-              {dish.dishName}
+            <li key={`${dish.restaurantName}::${dish.dishName}`}>
+              <Badge variant="done">
+                <Utensils className="h-3 w-3" />
+                {dish.dishName}
+              </Badge>
             </li>
           ))}
         </ul>
@@ -135,9 +135,9 @@ export function RoomProgressPanel({
                   <span className="truncate font-body text-sm text-foreground">
                     {member.displayName}
                     {member.isGuest ? (
-                      <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <Badge variant="sponsored" className="ml-1.5">
                         guest
-                      </span>
+                      </Badge>
                     ) : null}
                   </span>
                 </span>

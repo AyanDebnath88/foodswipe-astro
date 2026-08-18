@@ -1,0 +1,141 @@
+/* Food Swipe — design tokens
+   Palette + type are as specified in the brief. Everything below the
+   "ADDED" markers is new: spacing, radius, elevation, state colors, motion.
+   Tailwind v4: paste into @theme (rename --fs-* to --color-*/--radius-* etc. as needed). */
+
+:root {
+  /* ---- everyday palette (given) ---- */
+  --fs-bg:            #FBF3EC;
+  --fs-card:          #FEFCF9;
+  --fs-ink:           #1C1410;
+  --fs-primary:       #D97757;
+  --fs-secondary:     #9CAE8C;
+  --fs-accent:        #E8C87E;
+
+  /* ---- ADDED: derived neutrals (all sampled off ink/bg, no new hue) ---- */
+  --fs-ink-2:         #4A3B31;  /* body on ivory      9.1:1  */
+  --fs-ink-3:         #6B5749;  /* secondary text     6.2:1  */
+  --fs-ink-4:         #8A7462;  /* meta, >=16px/bold  4.6:1  */
+  --fs-ink-5:         #A8927E;  /* placeholders only         */
+  --fs-line:          #E7DACD;  /* card + control border     */
+  --fs-line-soft:     #EFE3D6;  /* utility card border, dividers */
+  --fs-line-strong:   #E2D2C1;  /* input rest border         */
+  --fs-surface-sunk:  #F2E9DC;  /* segmented track, banners  */
+  --fs-surface-notice:#F4EDE1;
+
+  /* ---- ADDED: state colors ---- */
+  --fs-primary-hover:    #C86A4B;
+  --fs-primary-active:   #C05F3F;
+  --fs-primary-disabled: #E7C8B9;
+  --fs-on-primary:       #FFF6F0;   /* 4.7:1 on terracotta */
+  --fs-on-primary-muted: #A38676;   /* disabled label */
+  --fs-on-secondary:     #1C2A18;   /* ink-on-sage, never white */
+  --fs-on-accent:        #1C1410;   /* ink-on-gold, 9.8:1 */
+  --fs-success-bg:       #EDF1E8;
+  --fs-success-line:     #D3DEC6;
+  --fs-success-ink:      #3F4E31;
+  --fs-match-bg:         #E9EFE3;
+  --fs-match-line:       #CBD8BE;
+  --fs-match-ink:        #43552F;
+  --fs-attention-line:   #C08A6E;   /* input "needs attention" — warm, not red */
+  --fs-destructive:      #A6503A;   /* confirm-dialog action ONLY, 5.0:1 on ivory; label #FFF6F0 = 5.2:1 */
+  --fs-skeleton:         #F2E9DC;   /* reserved-space blocks, no shimmer */
+  --fs-focus:            #D97757;
+  --fs-focus-ring:       0 0 0 3px rgba(217,119,87,.18);
+
+  /* ---- celebration palette — MATCH REVEAL ONLY ----
+     REVISED off-brief: the specified neon pink/mint read as a different product
+     mid-flow. Same bounded-dark decision, warm-family accents. See rationale.md. */
+  --fs-void:          #2A1A16;  /* warm ink-brown, one step below --fs-ink */
+  --fs-ember:         #E8875F;  /* badge gradient top, glow source */
+  --fs-ember-deep:    #C05F3F;  /* badge gradient bottom */
+  --fs-celebrate-accent: #E8C87E; /* dish name — the everyday gold, 11.1:1 on void */
+  --fs-void-ink:      #FFF8F2;  /* 15.2:1 */
+  --fs-void-ink-2:    #E3CDBE;  /*  8.4:1 */
+  --fs-void-ink-3:    #CBB4A4;  /*  6.1:1 */
+  --fs-void-line:     #4B382E;
+  --fs-void-avatar:   #3E2A22;
+  --fs-glow:          rgba(217,119,87,.5);
+  /* celebration CTA = --fs-primary + --fs-e-neon glow, label --fs-on-primary */
+
+  /* ---- ADDED: spacing (4px base) ---- */
+  --fs-1: 4px;  --fs-2: 8px;  --fs-3: 12px; --fs-4: 16px;
+  --fs-5: 20px; --fs-6: 24px; --fs-8: 32px; --fs-10: 40px;
+  --fs-14: 56px; --fs-18: 72px;
+  --fs-pad-screen-mobile: 20px;
+  --fs-pad-screen-desktop: 40px;
+  --fs-gutter-desktop: 24px;
+  --fs-max-content: 1240px;
+  /* breakpoints: 4 stops, no more */
+  --fs-bp-sm: 375px;   /* single column, bottom tab bar */
+  --fs-bp-md: 768px;   /* card capped + centred, roster becomes a strip */
+  --fs-bp-lg: 1120px;  /* three columns 260/1fr/280, pad 32 */
+  --fs-bp-xl: 1440px;  /* 280/1fr/300 at 1240 max, pad 40 */
+  --fs-nav-height: 62px;        /* bottom tab bar */
+  --fs-nav-inset: 26px;         /* home indicator */
+  --fs-thumb-clearance: 96px;   /* swipe controls above the tab bar */
+  --fs-card-max: 460px;      /* swipe card cap on desktop */
+  --fs-form-max: 420px;
+
+  /* ---- ADDED: radius ---- */
+  --fs-r-pill:    999px;
+  --fs-r-xs:      8px;    /* badges */
+  --fs-r-sm:      14px;   /* rows, small controls */
+  --fs-r-md:      16px;   /* buttons, inputs */
+  --fs-r-lg:      18px;   /* utility cards */
+  --fs-r-xl:      22px;   /* panels */
+  --fs-r-2xl:     28px;   /* swipe + discovery cards */
+  --fs-r-sheet:   32px;   /* bottom sheets */
+  --fs-r-device:  44px;
+
+  /* ---- ADDED: elevation (all warm-tinted, never neutral black) ---- */
+  --fs-e-0: 0 1px 2px rgba(28,20,16,.05);
+  --fs-e-1: 0 1px 2px rgba(28,20,16,.06), 0 10px 20px -10px rgba(28,20,16,.25);
+  --fs-e-2: 0 2px 4px rgba(28,20,16,.06), 0 18px 36px -16px rgba(28,20,16,.28);
+  --fs-e-primary: 0 2px 4px rgba(217,119,87,.25), 0 12px 24px -12px rgba(217,119,87,.55);
+  --fs-e-sheet: 0 -12px 32px -16px rgba(28,20,16,.22);
+  --fs-e-neon: 0 0 44px -6px rgba(217,119,87,.6);
+
+  /* ---- type (families given) ---- */
+  --fs-font-display: "Fraunces", Georgia, serif;
+  --fs-font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --fs-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* ADDED: scale — mobile / desktop */
+  --fs-t-celebrate: 46px;  --fs-t-celebrate-d: 76px;  /* Fraunces 900, lh .98-1.02, ls -.02/-.03em */
+  --fs-t-h1:        32px;  --fs-t-h1-d:        44px;  /* Fraunces 600, lh 1.0,  ls -.02em */
+  --fs-t-card:      34px;  --fs-t-card-d:      40px;  /* Fraunces 600, on-photo title */
+  --fs-t-h2:        20px;  --fs-t-h2-d:        22px;  /* Fraunces 600 */
+  --fs-t-lg:        16.5px;
+  --fs-t-body:      15px;  /* Inter 400, lh 1.5 */
+  --fs-t-sm:        13.5px;
+  --fs-t-xs:        12.5px;
+  --fs-t-caps:      11.5px; /* Inter 600, ls .1em */
+
+  /* ---- ADDED: motion ---- */
+  --fs-dur-instant:   120ms;  /* press feedback */
+  --fs-dur-fast:      150ms;  /* focus, crossfade */
+  --fs-dur-base:      220ms;  /* snap-back, state change */
+  --fs-dur-exit:      180ms;  /* card fly-out */
+  --fs-dur-enter:     300ms;
+  --fs-dur-slow:      420ms;  /* deserving entrances */
+  --fs-dur-celebrate: 520ms;
+  --fs-ease-out:    cubic-bezier(.22, 1, .36, 1);      /* default: spring-ish, no overshoot */
+  --fs-ease-spring: cubic-bezier(.34, 1.56, .64, 1);   /* overshoot: pops only */
+  --fs-ease-exit:   cubic-bezier(.32, .72, 0, 1);      /* leaving the screen */
+  --fs-ease-linear: linear;                            /* pointer-tracked hover only */
+  --fs-stagger:     60ms;
+  --fs-skeleton-delay: 300ms;   /* nothing shows before this */
+  --fs-toast-dwell: 4000ms;
+  --fs-swipe-threshold: 96px;   /* commit distance */
+  --fs-swipe-stamp-in:  32px;   /* YES/NOPE stamp starts fading in */
+  --fs-swipe-rotate:    18;     /* deg = dragX / 18, capped 12 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fs-dur-instant: 1ms; --fs-dur-fast: 1ms; --fs-dur-base: 1ms;
+    --fs-dur-exit: 150ms; --fs-dur-enter: 150ms; --fs-dur-slow: 150ms;
+    --fs-dur-celebrate: 150ms; --fs-stagger: 0ms;
+  }
+  /* plus: no scale, no pulse, no parallax — opacity only */
+}

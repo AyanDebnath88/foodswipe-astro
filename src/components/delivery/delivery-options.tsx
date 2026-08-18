@@ -160,7 +160,7 @@ export function DeliveryOptions({
 
   if (status === "idle") {
     return (
-      <div className="rounded-2xl border border-border bg-card/40 p-6 text-center">
+      <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card/40 p-6 text-center">
         <Truck className="h-6 w-6 text-primary mx-auto mb-3" />
         <p className="font-body text-muted-foreground mb-4">
           See which delivery apps carry {restaurantName}.
@@ -183,7 +183,7 @@ export function DeliveryOptions({
 
   if (status === "error" || !data) {
     return (
-      <div className="rounded-2xl border border-border bg-card/40 p-6 text-center">
+      <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card/40 p-6 text-center">
         <p className="font-body text-muted-foreground mb-4">{message ?? "Couldn't load delivery options."}</p>
         <Button variant="outline" onClick={requestLocation} className="rounded-2xl">
           Try again
@@ -193,7 +193,7 @@ export function DeliveryOptions({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card/40 p-6">
+    <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card/40 p-6">
       <h3 className="font-headline text-xl mb-1">Order {restaurantName}</h3>
       <p className="font-body text-sm text-muted-foreground mb-4">
         Search for this restaurant on the delivery apps available in your area.

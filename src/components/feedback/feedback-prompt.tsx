@@ -184,7 +184,7 @@ export function FeedbackPrompt({
   // ---------------------------------------------------------------------
   if (mine && !editing) {
     return (
-      <div className="rounded-2xl border border-black/5 bg-accent/30 p-4">
+      <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-accent/30 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="font-body text-sm font-medium text-foreground">
@@ -237,7 +237,7 @@ export function FeedbackPrompt({
       );
     }
     return (
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+      <div className="rounded-[var(--fs-r-lg)] border border-primary/20 bg-primary/5 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="font-headline text-base font-semibold text-foreground">
@@ -268,7 +268,7 @@ export function FeedbackPrompt({
   // The form.
   // ---------------------------------------------------------------------
   return (
-    <div className="rounded-2xl border border-black/5 bg-card p-4 shadow-sm">
+    <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card p-4 shadow-[var(--fs-e-0)]">
       <div className="flex items-start justify-between gap-3">
         <p className="font-headline text-base font-semibold text-foreground">
           {restaurantName ? `${restaurantName} — how was it?` : "How did it go?"}

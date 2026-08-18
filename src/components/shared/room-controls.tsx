@@ -29,9 +29,16 @@ interface RoomControlsProps {
    * `foodswipe_active_room` localStorage cache.
    */
   roomCode?: string | null;
+  /**
+   * Rendered inside the mobile floating account strip (ink background) vs
+   * inline in the desktop ink app bar. Both are dark surfaces, but the
+   * floating strip needs its own shadow/pill chrome since it isn't already
+   * sitting inside a bar.
+   */
+  floating?: boolean;
 }
 
-export function RoomControls({ roomCode = null }: RoomControlsProps) {
+export function RoomControls({ roomCode = null, floating = false }: RoomControlsProps) {
   // `id` is NON-nullable now. A control that can't name the room it acts on
   // has no business being on screen -- see handleLeave().
   const [room, setRoom] = useState<{ id: string; code: string } | null>(null);
@@ -118,24 +125,28 @@ export function RoomControls({ roomCode = null }: RoomControlsProps) {
 
   if (!room) return null;
 
+  const chipClass = floating
+    ? "inline-flex items-center gap-1.5 rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-3 h-9 font-body text-xs text-[var(--fs-on-ink)] shadow-[var(--fs-e-float)]"
+    : "hidden items-center gap-1.5 rounded-[var(--fs-r-pill)] border border-[var(--fs-glass-line)] bg-white/5 px-3 py-1 font-body text-xs text-[var(--fs-on-ink)] sm:inline-flex";
+
   return (
     <div className="flex items-center gap-2">
-      <span
-        className="hidden items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 font-body text-xs text-foreground sm:inline-flex"
-        title="The room you're currently swiping in"
-      >
-        <span className="text-muted-foreground">Room</span>
-        <span className="font-headline text-sm font-bold tracking-widest select-all">{room.code}</span>
+      <span className={chipClass} title="The room you're currently swiping in">
+        <span className={floating ? "text-[var(--fs-on-dark-4)]" : "text-[var(--fs-on-dark-4)]"}>Room</span>
+        <span className="font-display text-sm font-bold tracking-widest select-all">{room.code}</span>
       </span>
       <button
         type="button"
         onClick={handleLeave}
         disabled={leaving}
-        className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 font-body text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-60"
+        className={
+          floating
+            ? "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-3 font-body text-xs font-medium text-[var(--fs-on-dark-4)] shadow-[var(--fs-e-float)] transition-colors hover:text-[var(--fs-on-ink)] disabled:pointer-events-none disabled:opacity-60"
+            : "inline-flex h-[38px] items-center justify-center gap-1.5 whitespace-nowrap rounded-[var(--fs-r-pill)] px-3 font-body text-sm font-medium text-[var(--fs-on-dark-4)] transition-colors hover:text-[var(--fs-on-ink)] disabled:pointer-events-none disabled:opacity-60"
+        }
       >
         {leaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <DoorOpen className="h-4 w-4" />}
-        <span className="hidden sm:inline">Leave room</span>
-        <span className="sm:hidden">Leave</span>
+        <span className={floating ? "" : "hidden sm:inline"}>Leave room</span>
       </button>
     </div>
   );

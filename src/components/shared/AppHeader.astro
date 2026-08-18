@@ -1,27 +1,17 @@
 ---
-// Persistent in-app header.
-//
-// Added after real two-user testing found that every in-app page was a dead
-// end: BaseLayout rendered a bare <slot />, so once someone was in /swipe or
-// /match/... there was no logo, no way home, no way to leave the room, and no
-// log out -- only /logout existed and it was linked exclusively from the
-// landing page. Used by rooms.astro, rooms/join.astro, swipe.astro,
-// match/[cuisine].astro and match/[cuisine]/[restaurant].astro.
+// Persistent in-app navigation. Design system v2 (design-language-v2.md #3):
+// a floating ink pill fixed above the home indicator on mobile (<1024px),
+// flattening into a 68px ink app bar on desktop. Used by rooms.astro,
+// rooms/join.astro, swipe.astro, match/[cuisine].astro and
+// match/[cuisine]/[restaurant].astro.
 //
 // NOT used on the landing page (src/pages/index.astro), which has its own
-// signed-in/signed-out nav.
+// signed-in/signed-out header -- that one is marketing chrome, this is the
+// app's persistent destination nav.
 //
-// The logo mark stays static markup on purpose -- it's the same inline SVG as
-// index.astro's, kept inline rather than importing shared/logo.tsx (a React
-// component, which would mean hydrating an island just to draw a link).
-//
-// The NAV, however, is now an island (HeaderNav). It used to be static <a>
-// tags, which meant "Log out" and the room controls were shown to signed-out
-// visitors too -- most glaringly on the guest-invite page, which promises "no
-// account needed" directly under an offer to log out. It can't be a
-// server-side check either, because this header is used by statically
-// prerendered pages where that would run at build time; see header-nav.tsx's
-// header comment for the full reasoning.
+// The NAV is an island (HeaderNav) because auth must resolve client-side --
+// this header is used by both per-request and statically prerendered pages;
+// see header-nav.tsx's header comment for the full reasoning.
 import { HeaderNav } from "./header-nav";
 
 interface Props {
@@ -30,23 +20,29 @@ interface Props {
 }
 
 const { roomCode = null } = Astro.props;
+const pathname = Astro.url.pathname;
 ---
 
-<header class="sticky top-0 z-40 w-full border-b border-black/5 bg-background/80 backdrop-blur-md">
-  <div class="container mx-auto flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-8">
-    <a href="/" class="group flex shrink-0 items-center gap-2" aria-label="Food Swipe home">
-      <div class="rounded-lg bg-primary/80 p-1.5 text-primary-foreground transition-colors group-hover:bg-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
-          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
-          <path d="M7 2v20" />
-          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
-        </svg>
-      </div>
-      <span class="font-headline text-xl font-bold text-foreground">Food Swipe</span>
-    </a>
+<!--
+  Mobile: fixed floating ink pill, inset 20px, 26px above the safe-area
+  bottom. Desktop (lg: 1024px+): flattens to a full-width 68px ink bar at the
+  top instead -- the pill "returns" below 1024px per the spec.
+-->
+<nav
+  aria-label="Primary"
+  class="fixed inset-x-5 z-40 flex h-[var(--fs-nav-pill-h)] items-center justify-around rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-1.5 shadow-[var(--fs-e-float)] lg:sticky lg:inset-x-0 lg:top-0 lg:h-[var(--fs-appbar-h)] lg:w-full lg:justify-between lg:rounded-none lg:px-10 lg:shadow-none"
+  style={{ bottom: "var(--fs-nav-bottom)" }}
+>
+  <a href="/" class="hidden shrink-0 items-center gap-2 lg:flex" aria-label="Food Swipe home">
+    <div class="rounded-[var(--fs-r-sm)] bg-[var(--fs-terracotta)] p-1.5 text-[var(--fs-on-ink)]">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
+        <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+        <path d="M7 2v20" />
+        <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+      </svg>
+    </div>
+    <span class="font-display text-lg font-extrabold uppercase tracking-[-.02em] text-[var(--fs-on-ink)]">Food Swipe</span>
+  </a>
 
-    <nav class="flex items-center gap-1 sm:gap-2">
-      <HeaderNav roomCode={roomCode} client:load />
-    </nav>
-  </div>
-</header>
+  <HeaderNav roomCode={roomCode} pathname={pathname} client:load />
+</nav>

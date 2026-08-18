@@ -53,7 +53,7 @@
 // is possible again.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DishCard, type Dish } from "./dish-card";
-import { Button } from "@/components/ui/button";
+import { Button, CtaArrow } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
   X,
@@ -433,17 +433,20 @@ export function DishSwipeArea({ cuisineId, restaurantName, restaurantAddress, ro
   // ---------------------------------------------------------------------------
   if (roomClosed) {
     return (
-      <div className="w-full max-w-sm text-center p-8 bg-card rounded-2xl shadow-lg">
-        <div className="mx-auto bg-destructive/15 p-3 rounded-full mb-3 w-fit">
-          <DoorClosed className="h-8 w-8 text-destructive" />
+      <div className="w-full max-w-sm text-center p-8 bg-card rounded-[var(--fs-r-xl)] shadow-[var(--fs-e-2)]">
+        <div className="mx-auto bg-[var(--fs-destructive)]/15 p-3 rounded-full mb-3 w-fit">
+          <DoorClosed className="h-8 w-8 text-[var(--fs-destructive)]" />
         </div>
         <h3 className="text-xl font-headline mb-2">This room was closed</h3>
         <p className="text-muted-foreground font-body text-sm mb-6">
           The host closed room {roomCode} while you were picking dishes, so the session has ended. The
           agreed list went with it -- start a new room, or join another one.
         </p>
-        <Button asChild className="w-full h-11 rounded-2xl">
-          <a href="/rooms">Back to rooms</a>
+        <Button asChild variant="cta">
+          <a href="/rooms">
+            <span>Back to rooms</span>
+            <CtaArrow />
+          </a>
         </Button>
       </div>
     );
@@ -715,21 +718,23 @@ export function DishSwipeArea({ cuisineId, restaurantName, restaurantAddress, ro
         </p>
       )}
 
-      <div className="flex items-center justify-center gap-4 mt-8">
+      <div className="flex items-center justify-center gap-4 mt-8" style={{ marginBottom: "var(--fs-thumb-clearance)" }}>
         <Button
           variant="outline"
           size="icon"
           aria-label="Pass on this dish"
-          className="w-16 h-16 rounded-full shadow-lg border-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+          className="rounded-full shadow-[var(--fs-e-1)] border-2 border-[var(--fs-line-strong)] text-[var(--fs-text-3)] hover:bg-[var(--fs-cream-tint)]"
+          style={{ width: "var(--fs-swipe-pass)", height: "var(--fs-swipe-pass)" }}
           onClick={() => document.getElementById("dish-swipe-left-btn")?.click()}
         >
-          <X className="h-8 w-8" />
+          <X className="h-7 w-7" />
         </Button>
         <Button
           variant="outline"
           size="icon"
           aria-label="Like this dish"
-          className="w-16 h-16 rounded-full shadow-lg border-2 border-primary/50 text-primary hover:bg-primary/10"
+          className="rounded-full shadow-[var(--fs-e-primary)] border-2 border-[var(--fs-terracotta)] text-[var(--fs-terracotta)] hover:bg-[var(--fs-terracotta)]/10"
+          style={{ width: "var(--fs-swipe-like)", height: "var(--fs-swipe-like)" }}
           onClick={() => document.getElementById("dish-swipe-right-btn")?.click()}
         >
           <Heart className="h-8 w-8" />

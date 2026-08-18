@@ -221,21 +221,23 @@ export function SubcuisineSwipeArea({ cuisineId, roomCode }: SubcuisineSwipeArea
       )}
 
       {deck.length > 0 && (
-        <div className="flex items-center justify-center gap-4 mt-8">
+        <div className="flex items-center justify-center gap-4 mt-8" style={{ marginBottom: "var(--fs-thumb-clearance)" }}>
           <Button
             variant="outline"
             size="icon"
             aria-label="Pass on this style of Indian food"
-            className="w-16 h-16 rounded-full shadow-lg border-2 border-destructive/50 text-destructive hover:bg-destructive/10"
+            className="rounded-full shadow-[var(--fs-e-1)] border-2 border-[var(--fs-line-strong)] text-[var(--fs-text-3)] hover:bg-[var(--fs-cream-tint)]"
+            style={{ width: "var(--fs-swipe-pass)", height: "var(--fs-swipe-pass)" }}
             onClick={() => document.getElementById("subcuisine-swipe-left-btn")?.click()}
           >
-            <X className="h-8 w-8" />
+            <X className="h-7 w-7" />
           </Button>
           <Button
             variant="outline"
             size="icon"
             aria-label="Like this style of Indian food"
-            className="w-16 h-16 rounded-full shadow-lg border-2 border-primary/50 text-primary hover:bg-primary/10"
+            className="rounded-full shadow-[var(--fs-e-primary)] border-2 border-[var(--fs-terracotta)] text-[var(--fs-terracotta)] hover:bg-[var(--fs-terracotta)]/10"
+            style={{ width: "var(--fs-swipe-like)", height: "var(--fs-swipe-like)" }}
             onClick={() => document.getElementById("subcuisine-swipe-right-btn")?.click()}
           >
             <Heart className="h-8 w-8" />

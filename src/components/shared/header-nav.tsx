@@ -1,39 +1,71 @@
 "use client";
 
-// The auth-aware half of the app header (src/components/shared/AppHeader.astro).
+// The auth-aware half of the app nav (src/components/shared/AppHeader.astro).
+// Design system v2 (design-language-v2.md #3): a floating ink pill fixed
+// above the home indicator on mobile, flattening into a 68px ink app bar on
+// desktop (>=1024px -- the pill returns below that). Three top-level
+// destinations (Rooms/History/Saved) with icon + label; the active one is a
+// terracotta pill, not an underline.
 //
-// WHY THIS IS AN ISLAND rather than a server-side auth check in the .astro
-// file: AppHeader is used by BOTH per-request pages (swipe.astro,
-// match/[cuisine].astro -- `prerender = false`) and statically prerendered
-// ones (rooms/join.astro). A server-side `supabase.auth.getUser()` in the
-// header would run at BUILD time for the static pages, when there is no
-// request and therefore no session, and would bake in a permanent
-// "signed out" answer -- the exact static/per-request trap documented in the
-// build log's "Astro output mode" pattern. Reading the session client-side
-// works identically on both kinds of page, and the header is chrome, not an
-// access-control boundary (RLS is), so a brief unresolved state costs nothing.
-//
-// The bug this fixes: the header was entirely static markup with no auth
-// branch, so it showed "Log out" and the room controls to signed-out visitors.
-// That was at its most self-contradictory on the guest-invite page
-// (/rooms/join), which tells the visitor "no account needed" while the header
-// above it offered to log them out of the account they don't have.
+// WHY THIS IS AN ISLAND rather than a server-side auth check: AppHeader is
+// used by BOTH per-request pages (swipe.astro, match/[cuisine].astro --
+// `prerender = false`) and statically prerendered ones (rooms/join.astro). A
+// server-side `supabase.auth.getUser()` here would run at BUILD time for the
+// static pages and bake in a permanent "signed out" answer. Reading the
+// session client-side works identically on both kinds of page, and the nav is
+// chrome, not an access-control boundary (RLS is), so a brief unresolved
+// state costs nothing.
 import { useEffect, useState } from "react";
+import { Users, History as HistoryIcon, Heart, LogIn, UserPlus, LogOut } from "lucide-react";
 import { RoomControls } from "./room-controls";
 import { getCurrentUser } from "@/lib/guest-auth";
 
 interface HeaderNavProps {
   /** Room code from the page's ?room=CODE, when it has one. */
   roomCode?: string | null;
+  /** Current pathname (Astro.url.pathname), for the active-item pill. */
+  pathname: string;
 }
 
-const LINK_CLASS =
-  "inline-flex h-9 items-center justify-center rounded-md px-3 font-body text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground";
+const NAV_ITEMS = [
+  { href: "/rooms", label: "Rooms", icon: Users },
+  { href: "/history", label: "History", icon: HistoryIcon },
+  { href: "/favorites", label: "Saved", icon: Heart },
+] as const;
 
-export function HeaderNav({ roomCode = null }: HeaderNavProps) {
+function isActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function NavItem({
+  href,
+  label,
+  Icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  Icon: typeof Users;
+  active: boolean;
+}) {
+  return (
+    <a
+      href={href}
+      className={`flex w-[var(--fs-nav-item)] flex-col items-center justify-center gap-0.5 rounded-[var(--fs-r-pill)] py-1.5 text-[11px] font-medium transition-colors lg:h-[38px] lg:w-auto lg:flex-row lg:gap-1.5 lg:px-4 lg:text-sm ${
+        active
+          ? "bg-[var(--fs-terracotta-text)] text-[var(--fs-on-ink)]"
+          : "text-[var(--fs-on-dark-4)] hover:text-[var(--fs-on-ink)]"
+      }`}
+    >
+      <Icon className="h-5 w-5 lg:h-4 lg:w-4" aria-hidden="true" />
+      <span>{label}</span>
+    </a>
+  );
+}
+
+export function HeaderNav({ roomCode = null, pathname }: HeaderNavProps) {
   // `null` = not resolved yet. Rendering neither branch until we know beats
-  // guessing and then flipping: a nav that offers "Log out" and then swaps to
-  // "Log in" a moment later is worse than one that appears a moment late.
+  // guessing and then flipping.
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -54,49 +86,73 @@ export function HeaderNav({ roomCode = null }: HeaderNavProps) {
   }, []);
 
   if (signedIn === null) {
-    // Reserve roughly the right amount of space so the header doesn't jump.
-    return <div className="h-9 w-24" aria-hidden="true" />;
+    // Reserve roughly the right amount of space so nothing jumps once resolved.
+    return <div className="h-full w-full" aria-hidden="true" />;
   }
 
   if (!signedIn) {
     return (
-      <>
-        <a href="/login" className={`${LINK_CLASS} text-foreground`}>
-          Log in
+      <div className="flex h-full w-full items-center justify-around gap-2 lg:justify-end lg:gap-3">
+        <a
+          href="/login"
+          className="flex w-[var(--fs-nav-item)] flex-col items-center justify-center gap-0.5 rounded-[var(--fs-r-pill)] py-1.5 text-[11px] font-medium text-[var(--fs-on-dark-4)] hover:text-[var(--fs-on-ink)] lg:h-[38px] lg:w-auto lg:flex-row lg:gap-1.5 lg:px-4 lg:text-sm"
+        >
+          <LogIn className="h-5 w-5 lg:h-4 lg:w-4" aria-hidden="true" />
+          <span>Log in</span>
         </a>
         <a
           href="/signup"
-          className={`${LINK_CLASS} bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground`}
+          className="flex w-[var(--fs-nav-item)] flex-col items-center justify-center gap-0.5 rounded-[var(--fs-r-pill)] bg-[var(--fs-terracotta-text)] py-1.5 text-[11px] font-medium text-[var(--fs-on-ink)] lg:h-[38px] lg:w-auto lg:flex-row lg:gap-1.5 lg:px-4 lg:text-sm"
         >
-          Sign up
+          <UserPlus className="h-5 w-5 lg:h-4 lg:w-4" aria-hidden="true" />
+          <span>Sign up</span>
         </a>
-      </>
+      </div>
     );
   }
 
   return (
     <>
-      <a href="/rooms" className={`${LINK_CLASS} text-foreground`}>
-        Rooms
-      </a>
       {/*
-        Phase 4 (retention loop) links, moved in here from the static markup
-        along with the rest of the nav. Both are per-user pages, so they only
-        make sense for a signed-in visitor. Hidden below `sm` so the mobile
-        header doesn't wrap -- neither page is stranded there, since /history
-        and /favorites cross-link to each other from their empty states and
-        the room cards.
+        Mobile: room controls + Log out float in their own strip above the
+        pill (position: fixed escapes this island's DOM position regardless
+        of where AppHeader.astro mounts it) -- neither gets one of the pill's
+        three destination slots, but both must stay reachable; the app has no
+        other account surface. Desktop: same two controls, inline at the
+        right of the ink bar instead.
       */}
-      <a href="/history" className={`hidden ${LINK_CLASS} text-foreground sm:inline-flex`}>
-        History
-      </a>
-      <a href="/favorites" className={`hidden ${LINK_CLASS} text-foreground sm:inline-flex`}>
-        Saved
-      </a>
-      <RoomControls roomCode={roomCode} />
-      <a href="/logout" className={`${LINK_CLASS} text-muted-foreground`}>
-        Log out
-      </a>
+      <div
+        className="pointer-events-none fixed inset-x-5 z-40 flex justify-end gap-2 lg:hidden"
+        style={{ bottom: "calc(var(--fs-nav-bottom) + var(--fs-nav-pill-h) + 10px)" }}
+      >
+        <div className="pointer-events-auto">
+          <RoomControls roomCode={roomCode} floating />
+        </div>
+        <a
+          href="/logout"
+          className="pointer-events-auto inline-flex h-9 items-center gap-1.5 rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-3 text-xs font-medium text-[var(--fs-on-dark-4)] shadow-[var(--fs-e-float)] hover:text-[var(--fs-on-ink)]"
+        >
+          <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+          Log out
+        </a>
+      </div>
+
+      <div className="hidden lg:block">
+        <RoomControls roomCode={roomCode} />
+      </div>
+
+      <div className="flex h-full w-full items-center justify-around lg:w-auto lg:justify-end lg:gap-1">
+        {NAV_ITEMS.map(({ href, label, icon }) => (
+          <NavItem key={href} href={href} label={label} Icon={icon} active={isActive(pathname, href)} />
+        ))}
+        <a
+          href="/logout"
+          className="hidden lg:flex h-[38px] items-center gap-1.5 rounded-[var(--fs-r-pill)] px-4 text-sm font-medium text-[var(--fs-on-dark-4)] hover:text-[var(--fs-on-ink)]"
+        >
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+          Log out
+        </a>
+      </div>
     </>
   );
 }

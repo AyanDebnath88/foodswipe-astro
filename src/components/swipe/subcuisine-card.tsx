@@ -82,7 +82,7 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
         zIndex,
         touchAction: isActive ? "none" : "auto",
       }}
-      className={`absolute w-full h-full max-w-sm max-h-[500px] rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-primary/70 via-accent/60 to-secondary/70 ${
+      className={`absolute w-full h-full max-w-sm md:max-w-[var(--fs-card-max)] max-h-[500px] md:max-h-[540px] rounded-[var(--fs-r-2xl)] overflow-hidden shadow-[var(--fs-e-2)] bg-[var(--fs-ink)] ${
         isActive ? "cursor-grab" : ""
       } ${animationClass}`}
     >
@@ -102,12 +102,14 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
             </span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-          <h2 className="text-3xl font-headline font-bold">{subcuisine.name}</h2>
+        <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
+        <div className="absolute bottom-0 left-0 right-0 p-6 text-[var(--fs-on-ink)]">
+          <h2 className="font-display text-[34px] font-extrabold uppercase leading-[0.95] tracking-[-.03em]">
+            {subcuisine.name}
+          </h2>
           <div className="mt-4 flex flex-wrap gap-2">
             {subcuisine.dishes.slice(0, 5).map((dish) => (
-              <Badge key={dish} variant="outline">
+              <Badge key={dish} variant="glass">
                 {dish}
               </Badge>
             ))}
@@ -116,18 +118,18 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
         {isActive && (
           <>
             <div
-              className={`absolute top-8 left-8 text-destructive text-2xl font-bold border-2 border-destructive rounded-xl px-4 py-1 transform -rotate-12 transition-opacity ${
+              className={`absolute top-8 left-8 text-[var(--fs-on-ink)] text-2xl font-display font-extrabold uppercase border-2 border-[var(--fs-destructive)] bg-[var(--fs-destructive)]/80 rounded-[var(--fs-r-sm)] px-4 py-1 transform -rotate-12 transition-opacity ${
                 pos.x < -10 ? "opacity-100" : "opacity-0"
               }`}
             >
-              NOPE
+              Nope
             </div>
             <div
-              className={`absolute top-8 right-8 text-primary text-2xl font-bold border-2 border-primary rounded-xl px-4 py-1 transform rotate-12 transition-opacity bg-black/20 ${
+              className={`absolute top-8 right-8 text-[var(--fs-on-ink)] text-2xl font-display font-extrabold uppercase border-2 border-[var(--fs-terracotta)] bg-[var(--fs-terracotta)]/80 rounded-[var(--fs-r-sm)] px-4 py-1 transform rotate-12 transition-opacity ${
                 pos.x > 10 ? "opacity-100" : "opacity-0"
               }`}
             >
-              LIKE
+              Like
             </div>
           </>
         )}

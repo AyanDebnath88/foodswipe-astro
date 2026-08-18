@@ -312,43 +312,46 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-12 pt-12">
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-[140px] lg:pb-12 pt-12">
       {/*
-        The signature celebration moment (composed-finding-sutton.md): the
-        one deliberately bold, bounded dark takeover in an otherwise
-        light/bright app. Scoped to .match-reveal-scope (global.css) so its
-        tokens exist ONLY inside this div -- nothing outside it may reference
-        them. Warm-family palette, not true neon (revised by the Claude
-        Design system pass, delivery/rationale.md #9 -- neon on true void
-        read as a different product mid-flow; same bounded-dark decision,
-        warm ember/gold accents instead). Staggered entrance, not a
-        simultaneous fade: backdrop first, then the heart badge (glow baked
-        into its own pop-in), then heading, then subtext, each via
-        --stagger-delay on the same two keyframe classes rather than four
-        bespoke animations.
+        The signature celebration moment: the one deliberately bold, bounded
+        dark takeover in an otherwise light/bright app. Design system v2
+        folds this into the everyday ink/terracotta/gold palette instead of a
+        separate void scope (design-language-v2.md, rationale.md #9) -- ink
+        IS the celebration ground now, no indirection needed. Staggered
+        entrance, not a simultaneous fade: backdrop first, then the heart
+        badge (glow baked into its own pop-in), then heading, then subtext,
+        each via --stagger-delay on the same two keyframe classes.
       */}
-      <div className="match-reveal-scope relative overflow-hidden rounded-3xl bg-[hsl(var(--void))] px-6 py-12 sm:py-16 text-center mb-12 animate-celebration-backdrop">
+      <div className="relative overflow-hidden rounded-[var(--fs-r-xl)] bg-[var(--fs-ink)] px-6 py-12 sm:py-16 text-center mb-12 animate-celebration-backdrop">
         <div
-          className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-b from-[hsl(var(--ember))] to-[hsl(var(--ember-deep))] mb-4 animate-celebration-heart"
+          className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-b from-[var(--fs-terracotta-lift)] to-[var(--fs-terracotta-deep)] mb-4 animate-celebration-heart"
           style={{ "--stagger-delay": "0.15s" } as React.CSSProperties}
         >
-          <Heart className="w-10 h-10 text-[hsl(var(--void-ink))] fill-current" />
+          <Heart className="w-10 h-10 text-[var(--fs-on-ink)] fill-current" />
         </div>
+        <p
+          className="font-display text-[length:var(--fs-t-label)] font-bold uppercase tracking-[var(--fs-tracking-eyebrow)] text-[var(--fs-gold)] animate-celebration-rise"
+          style={{ "--stagger-delay": "0.3s" } as React.CSSProperties}
+        >
+          Unanimous
+        </p>
         <h1
-          className="text-4xl md:text-5xl font-headline text-[hsl(var(--void-ink))] animate-celebration-rise"
+          className="mt-2 font-display text-4xl md:text-5xl font-extrabold uppercase tracking-[-.03em] text-[var(--fs-on-ink)] animate-celebration-rise"
           style={{ "--stagger-delay": "0.35s" } as React.CSSProperties}
         >
           {mealTimeHeading()}
         </h1>
         <p
-          className="text-2xl mt-2 text-[hsl(var(--void-ink-2))] animate-celebration-rise"
+          className="text-2xl mt-2 text-[var(--fs-on-dark-2)] animate-celebration-rise"
           style={{ "--stagger-delay": "0.5s" } as React.CSSProperties}
         >
-          You all want <span className="font-bold text-[hsl(var(--celebrate-accent))]">{cuisineName}</span> {emoji}!
+          You all want{" "}
+          <span className="font-headline font-semibold text-[var(--fs-gold)]">{cuisineName}</span> {emoji}!
         </p>
         {room && (
           <p
-            className="text-sm text-[hsl(var(--void-ink-2))]/70 mt-1 font-body animate-celebration-rise"
+            className="text-sm text-[var(--fs-on-dark-4)] mt-1 font-body animate-celebration-rise"
             style={{ "--stagger-delay": "0.65s" } as React.CSSProperties}
           >
             Room {room.code} &middot; {room.status === "matched" ? "Unanimous match" : "Match in progress"}
@@ -464,7 +467,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
               // blank/generic placeholder.
               const cardImage = getCuisineHeroImage(cuisineId);
               return (
-                <Card key={`${place.name}-${i}`} className="p-5 flex flex-col overflow-hidden">
+                <Card key={`${place.name}-${i}`} variant="solid" className="p-5 flex flex-col overflow-hidden">
                   {cardImage && (
                     <div className="-mx-5 -mt-5 mb-3 h-28 relative overflow-hidden">
                       <img
@@ -479,7 +482,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                   )}
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-headline text-lg leading-tight">{place.name}</h3>
-                    {sponsored && <Badge variant="accent">{place.sponsorshipLabel}</Badge>}
+                    {sponsored && <Badge variant="sponsored">{place.sponsorshipLabel}</Badge>}
                   </div>
                   {address && (
                     <p className="font-body text-xs text-muted-foreground mt-1.5 line-clamp-2">{address}</p>

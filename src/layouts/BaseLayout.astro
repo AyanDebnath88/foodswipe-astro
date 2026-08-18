@@ -21,17 +21,17 @@ const {
     <meta name="description" content={description} />
 
     <!--
-      Brand fonts: Fraunces (headline, variable -- carries both the everyday
-      refined register and the match-reveal celebration/badge register via
-      its opsz+wght axes, see global.css's font-headline comment) + Inter
-      (body). Full variable axis ranges requested so both the light
-      everyday weights and the heavy celebration weights are available from
-      one font file each, no separate weight round-trips.
+      Brand fonts (design system v2): Archivo (display -- 700/800 uppercase,
+      carries headings/labels/CTA everywhere), Fraunces (editorial -- demoted
+      to exactly one job, the dish name + section titles, see global.css's
+      font-headline comment), Inter (body). Full Fraunces variable axis range
+      kept even though its role shrank, since dish-name rendering still wants
+      opsz/wght flex; Archivo only needs its two display weights.
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Inter:wght@400..800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Inter:wght@400..800&display=swap"
       rel="stylesheet"
     />
 

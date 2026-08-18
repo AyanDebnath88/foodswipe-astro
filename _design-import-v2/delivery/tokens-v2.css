@@ -1,0 +1,159 @@
+/* Food Swipe — design tokens v2
+   Language: full-bleed photography, ink pill + terracotta arrow CTA, small caps data chips.
+   Tailwind v4: paste into @theme, renaming --v-* to --color-* / --radius-* / --spacing-* as needed. */
+
+:root {
+  /* ---- surfaces ---- */
+  --v-cream:        #F7F1E8;  /* app canvas */
+  --v-cream-tint:   #F1E9DD;  /* secondary button, nested tint */
+  --v-cream-sunk:   #EFE3D5;  /* disabled fill */
+  --v-card:         #FFFFFF;
+  --v-ink:          #171310;  /* nav bar, CTA pill, celebration ground */
+  --v-board:        #E9E2D6;  /* spec-board background only, not in-app */
+
+  /* ---- accents (one job each) ---- */
+  --v-terracotta:      #C4562F;  /* ICON-ONLY surfaces: arrow circle, heart, dots. 4.23:1 — too low for labels */
+  --v-terracotta-text: #B14A26;  /* any fill carrying a text label: #FFF8F2 on it = 4.9:1 */
+  --v-terracotta-hover:#9F4021;
+  --v-terracotta-deep: #A8401F;  /* celebration gradient bottom */
+  --v-terracotta-lift: #D9663A;  /* celebration gradient top */
+  --v-forest:          #2F6B42;  /* confirmed / mode chips */
+  --v-forest-tint:     #E7F0E9;
+  --v-forest-ink:      #245333;
+  --v-gold:            #E9C23F;  /* value + distance chips, notices, celebration eyebrow */
+  --v-gold-tint:       #FBF2DC;
+  --v-gold-line:       #F0DFB4;
+  --v-destructive:     #A6503A;  /* confirm dialogs only */
+
+  /* ---- text ---- */
+  /* all ratios below are computed WCAG relative-luminance values against --v-cream #F7F1E8 */
+  --v-text:         #171310;  /* 16.5:1 */
+  --v-text-2:       #3D362E;  /* 11.6:1 */
+  --v-text-3:       #574E43;  /*  7.3:1 — body */
+  --v-text-4:       #6B6155;  /*  5.4:1 */
+  --v-text-5:       #7A6E5E;  /*  4.6:1 — smallest AA-passing muted text, use at any size */
+  --v-text-6:       #8A7B67;  /*  3.6:1 — AA large-text only (>=24px or >=18.66px bold); NOT for placeholders */
+  --v-placeholder:  #7A6E5E;  /*  4.6:1 — placeholders are content and must pass AA */
+  --v-on-ink:       #FFF8F2;  /* 17.6:1 on ink · 4.9:1 on --v-terracotta-text · 6.0:1 on forest */
+  --v-on-gold:      #171310;  /* 10.8:1 — gold NEVER carries white */
+  --v-on-dark-2:    #EBDFD2;  /* supporting copy over scrim, 14.1:1 */
+  --v-on-dark-3:    #E4D8CB;  /* card body over scrim, 12.5:1 */
+  --v-on-dark-4:    #C6B8AB;  /* tertiary over scrim, 9.5:1 */
+
+  /* ---- lines ---- */
+  --v-line:         #E7DDCF;  /* card borders, list rules */
+  --v-line-strong:  #DFD5C6;  /* input rest, device edge */
+  --v-line-faint:   #EFE7DA;  /* internal dividers */
+
+  /* ---- photography scrims (CSS only, never baked into the asset) ---- */
+  --v-scrim-vertical: linear-gradient(to top, rgba(23,19,16,.86) 0%, rgba(23,19,16,.42) 46%, rgba(23,19,16,0) 100%);
+  --v-scrim-card:     linear-gradient(to top, rgba(23,19,16,.90) 0%, rgba(23,19,16,.24) 46%, rgba(23,19,16,.40) 100%);
+  --v-scrim-hero-d:   linear-gradient(100deg, rgba(23,19,16,.90) 0%, rgba(23,19,16,.66) 42%, rgba(23,19,16,.12) 78%, rgba(23,19,16,0) 100%);
+  --v-glass:          rgba(255,248,242,.18);  /* on-photo chips; add 6px blur */
+  --v-glass-line:     rgba(255,248,242,.34);
+  /* rule: >=300px of usable scrim at the bottom of any full-bleed image; never scrim >60% of height */
+
+  /* ---- radius ---- */
+  --v-r-pill:   999px;
+  --v-r-chip:   5px;    /* data chips */
+  --v-r-sm:     14px;   /* rail rows */
+  --v-r-md:     18px;   /* inputs, notices */
+  --v-r-lg:     22px;   /* small cards */
+  --v-r-xl:     24px;   /* panels, result cards */
+  --v-r-2xl:    28px;   /* swipe card */
+  --v-r-logo:   30px;
+  --v-r-device: 46px;
+
+  /* ---- elevation: one ambient shadow per floating element; photos never carry shadow ---- */
+  --v-e-0: 0 1px 2px rgba(23,19,16,.05);
+  --v-e-1: 0 10px 20px -12px rgba(23,19,16,.30);
+  --v-e-2: 0 2px 4px rgba(23,19,16,.08), 0 28px 52px -22px rgba(23,19,16,.42);
+  --v-e-float: 0 12px 30px -12px rgba(23,19,16,.55);   /* nav pill, CTA pill */
+  --v-e-primary: 0 14px 28px -10px rgba(196,86,47,.60);
+  --v-e-device: 0 2px 4px rgba(23,19,16,.05), 0 34px 64px -30px rgba(23,19,16,.40);
+
+  /* ---- spacing (4px base) ---- */
+  --v-1: 4px;  --v-2: 8px;  --v-3: 12px; --v-4: 16px; --v-5: 20px;
+  --v-6: 24px; --v-8: 32px; --v-10: 40px; --v-12: 48px; --v-16: 64px;
+  --v-pad-screen: 20px;        /* mobile */
+  --v-pad-page: 40px;          /* 1280-1439 */
+  --v-pad-page-xl: 48px;       /* >=1440 */
+  --v-pad-page-md: 32px;       /* 1024-1279 */
+  --v-gutter: 24px;
+  --v-max-content: 1320px;
+  --v-card-max: 480px;         /* swipe card cap on desktop */
+  --v-form-max: 420px;
+  --v-rail-left: 280px;
+  --v-rail-right: 320px;
+
+  /* ---- nav + CTA geometry ---- */
+  --v-nav-pill-h: 64px;        /* floating bottom pill (mobile) */
+  --v-nav-inset: 20px;         /* left/right inset */
+  --v-nav-bottom: 26px;        /* above home indicator */
+  --v-nav-item: 88px;          /* x 48px hit box */
+  --v-appbar-h: 68px;          /* desktop ink bar */
+  --v-cta-h: 58px;             /* pill row height */
+  --v-cta-arrow: 46px;         /* circle; 50px on desktop hover */
+  --v-target-min: 44px;
+  --v-swipe-like: 80px; --v-swipe-pass: 68px; --v-swipe-util: 56px;
+
+  /* ---- type ---- */
+  --v-font-display: "Archivo", system-ui, sans-serif;   /* 800, UPPERCASE, ls -.025 to -.04em */
+  --v-font-editorial: "Fraunces", Georgia, serif;       /* 600, dish + section titles, mixed case */
+  --v-font-body: "Inter", system-ui, sans-serif;
+  --v-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --v-t-hero-d:    82px;  /* desktop celebration / marketing H1, lh .88 */
+  --v-t-hero:      56px;  /* mobile hero + cuisine title, lh .90 */
+  --v-t-h1:        44px;
+  --v-t-h2:        32px;
+  --v-t-dish:      40px;  /* Fraunces 600 */
+  --v-t-h3:        22px;
+  --v-t-lg:        18px;
+  --v-t-body:      16px;
+  --v-t-body-sm:   15.5px; /* lh 1.55 */
+  --v-t-sm:        13.5px;
+  --v-t-xs:        12.5px;
+  --v-t-chip:      9.5px;  /* Archivo 700 caps, ls .12em */
+  --v-t-label:     10.5px; /* Archivo 700 caps, ls .20em */
+  --v-tracking-chip: .12em;
+  --v-tracking-label: .20em;
+  --v-tracking-eyebrow: .28em;
+
+  /* ---- breakpoints: 4 stops, no more ---- */
+  --v-bp-sm: 375px;   /* single column, floating nav pill */
+  --v-bp-md: 768px;   /* card capped + centred, roster becomes a strip */
+  --v-bp-lg: 1120px;  /* three columns 280/1fr/320 */
+  --v-bp-xl: 1440px;  /* pad 48, 1320 max */
+
+  /* ---- motion ---- */
+  --v-dur-press:     120ms;
+  --v-dur-fast:      150ms;
+  --v-dur-hover:     160ms;
+  --v-dur-base:      220ms;
+  --v-dur-exit:      180ms;
+  --v-dur-enter:     300ms;
+  --v-dur-slow:      420ms;
+  --v-dur-celebrate: 520ms;
+  --v-stagger:       60ms;
+  --v-skeleton-delay: 300ms;
+  --v-toast-dwell:   4000ms;
+  --v-ease-out:    cubic-bezier(.22, 1, .36, 1);
+  --v-ease-spring: cubic-bezier(.34, 1.56, .64, 1);   /* match heart + save heart only */
+  --v-ease-exit:   cubic-bezier(.32, .72, 0, 1);
+  --v-swipe-threshold: 96px;
+  --v-swipe-stamp-in:  32px;
+  --v-swipe-rotate-divisor: 18;   /* deg = dragX / 18, cap 12 */
+}
+
+/* focus: never animated, never suppressed */
+/* :focus-visible { outline: 2px solid var(--v-terracotta); outline-offset: 2px; } */
+/* on ink / photography: outline-color: var(--v-on-ink); */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --v-dur-press: 1ms; --v-dur-fast: 1ms; --v-dur-hover: 1ms; --v-dur-base: 1ms;
+    --v-dur-exit: 150ms; --v-dur-enter: 150ms; --v-dur-slow: 150ms;
+    --v-dur-celebrate: 150ms; --v-stagger: 0ms;
+  }
+  /* opacity only — no scale, no glow pulse, no parallax. Drag stays 1:1 (direct manipulation). */
+}

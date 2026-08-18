@@ -10,17 +10,19 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-const cardVariants = cva("rounded-2xl border text-card-foreground", {
+const cardVariants = cva("rounded-[var(--fs-r-xl)] border text-card-foreground", {
   variants: {
     variant: {
       // The pattern already repeated across rooms-dashboard/match-reveal/
       // feedback-prompt: soft border, translucent card fill, backdrop blur.
-      default: "border-primary/15 bg-card/70 backdrop-blur-md",
+      default: "border-[var(--fs-line)] bg-card/70 backdrop-blur-md",
       // Flat, opaque -- for surfaces that shouldn't show whatever's behind
       // them (e.g. stacked over card photography).
-      solid: "border-primary/15 bg-card shadow-sm",
+      solid: "border-[var(--fs-line)] bg-card shadow-[var(--fs-e-1)]",
       // Dashed invite/empty-state chrome (find-restaurants prompt, etc).
-      dashed: "border-2 border-dashed border-primary/30 bg-card/40",
+      dashed: "border-2 border-dashed border-[var(--fs-line-strong)] bg-card/40",
+      // Discovery surfaces (swipe + result cards) get the rounder radius step.
+      discovery: "border-[var(--fs-line)] bg-card shadow-[var(--fs-e-2)] rounded-[var(--fs-r-2xl)]",
     },
   },
   defaultVariants: { variant: "default" },

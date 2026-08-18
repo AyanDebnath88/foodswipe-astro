@@ -1,27 +1,28 @@
-// Design-phase Phase C primitive, paired with card.tsx. Sticker-shaped pill
-// badges are part of the Hongdae-derived celebration language ("Top Pick"),
-// but the shape shows up everywhere (dish chips, "Sponsored", host/guest
-// tags) hand-inlined with slightly different classes each time -- this is
-// the one definition. `neon` variant is the celebration-scope exception:
-// only meaningful inside .match-reveal-scope (see global.css), reads as a
-// plain pink pill outside it since --neon-pink is undefined there.
+// Design system v2 chip primitive. Two registers, never mixed (see
+// _design-import-v2/delivery/design-language-v2.md #5): solid square-radius
+// chips on light/card surfaces (mode/distance/sponsored/done), and one glass
+// pill register for on-photo use. Replaces the v1 sticker-pill Badge and its
+// broken `neon` variant (referenced an undefined --neon-pink).
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold whitespace-nowrap",
+  "inline-flex items-center gap-1 whitespace-nowrap font-display font-bold uppercase",
   {
     variants: {
       variant: {
-        default: "bg-secondary/80 text-secondary-foreground",
-        outline: "bg-white/20 text-white backdrop-blur-sm",
-        accent: "bg-accent text-accent-foreground uppercase text-[10px] tracking-wide px-2 py-0.5",
-        neon: "bg-[var(--neon-pink)] text-white shadow-[0_0_16px_var(--neon-pink)]",
+        // Solid register: rounded-[5px], Archivo 700 9.5px caps, on card/light surfaces.
+        mode: "rounded-[var(--fs-r-chip)] bg-[var(--fs-forest)] text-[var(--fs-on-ink)] px-1.5 py-1 text-[length:var(--fs-t-chip)] tracking-[var(--fs-tracking-chip)]",
+        distance: "rounded-[var(--fs-r-chip)] bg-[var(--fs-gold)] text-[var(--fs-on-gold)] px-1.5 py-1 text-[length:var(--fs-t-chip)] tracking-[var(--fs-tracking-chip)]",
+        sponsored: "rounded-[var(--fs-r-chip)] bg-[var(--fs-cream-tint)] text-[var(--fs-text-3)] px-1.5 py-1 text-[length:var(--fs-t-chip)] tracking-[var(--fs-tracking-chip)]",
+        done: "rounded-[var(--fs-r-chip)] bg-[var(--fs-forest-tint)] text-[var(--fs-forest-ink)] px-1.5 py-1 text-[length:var(--fs-t-chip)] tracking-[var(--fs-tracking-chip)]",
+        // Glass register: pill radius, 18% white + 6px blur, for use on top of full-bleed photography.
+        glass: "rounded-[var(--fs-r-pill)] bg-[var(--fs-glass)] border border-[var(--fs-glass-line)] backdrop-blur-[6px] text-[var(--fs-on-ink)] px-3 py-1.5 text-[length:var(--fs-t-chip)] tracking-[var(--fs-tracking-chip)]",
       },
     },
-    defaultVariants: { variant: "default" },
+    defaultVariants: { variant: "glass" },
   }
 );
 
