@@ -114,16 +114,17 @@ export function HeaderNav({ roomCode = null, pathname }: HeaderNavProps) {
   return (
     <>
       {/*
-        Mobile: room controls + Log out float in their own strip above the
-        pill (position: fixed escapes this island's DOM position regardless
-        of where AppHeader.astro mounts it) -- neither gets one of the pill's
-        three destination slots, but both must stay reachable; the app has no
-        other account surface. Desktop: same two controls, inline at the
-        right of the ink bar instead.
+        Mobile: room controls + Log out float top-right (the bottom is taken
+        by the nav pill, and floating them just above it collided with both
+        the card content and the swipe controls). position: fixed escapes
+        this island's DOM position regardless of where AppHeader mounts it.
+        Neither gets one of the pill's three destination slots, but both must
+        stay reachable; the app has no other account surface. Desktop: same
+        two controls, inline at the right of the ink bar instead.
       */}
       <div
-        className="pointer-events-none fixed inset-x-5 z-40 flex justify-end gap-2 lg:hidden"
-        style={{ bottom: "calc(var(--fs-nav-bottom) + var(--fs-nav-pill-h) + 10px)" }}
+        className="pointer-events-none fixed inset-x-3 z-40 flex justify-end gap-2 lg:hidden"
+        style={{ top: "calc(env(safe-area-inset-top, 0px) + 10px)" }}
       >
         <div className="pointer-events-auto">
           <RoomControls roomCode={roomCode} floating />

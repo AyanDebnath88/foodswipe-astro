@@ -37,35 +37,45 @@ export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCar
   const [isDragging, setIsDragging] = useState(false);
   const [exitDirection, setExitDirection] = useState<"left" | "right" | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
   const dishImage = getDishImage(dish.name, cuisineId);
   const kenBurnsVariant = dish.id.length % 2 === 0 ? "a" : "b";
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isActive) return;
+    startRef.current = { x: e.clientX, y: e.clientY };
     setIsDragging(true);
     cardRef.current?.setPointerCapture(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !isActive) return;
-    setPos((currentPos) => ({ x: currentPos.x + e.movementX, y: currentPos.y + e.movementY }));
+    if (!isDragging || !isActive || !startRef.current) return;
+    setPos({ x: e.clientX - startRef.current.x, y: e.clientY - startRef.current.y });
   };
 
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !isActive) return;
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>, commit: boolean) => {
+    if (!isDragging) return;
     setIsDragging(false);
-    cardRef.current?.releasePointerCapture(e.pointerId);
+    startRef.current = null;
+    try {
+      cardRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* capture may already be gone on cancel */
+    }
 
-    if (pos.x > SWIPE_THRESHOLD) {
+    if (commit && pos.x > SWIPE_THRESHOLD) {
       setExitDirection("right");
       onSwipe("right");
-    } else if (pos.x < -SWIPE_THRESHOLD) {
+    } else if (commit && pos.x < -SWIPE_THRESHOLD) {
       setExitDirection("left");
       onSwipe("left");
     } else {
       setPos({ x: 0, y: 0 });
     }
   };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => endDrag(e, true);
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => endDrag(e, false);
 
   const rotation = pos.x / 20;
   const transform = `translate(${pos.x}px, ${pos.y}px) rotate(${rotation}deg) scale(${isDragging ? 1.05 : 1})`;
@@ -80,6 +90,7 @@ export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCar
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       style={{
         transform,
         transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",

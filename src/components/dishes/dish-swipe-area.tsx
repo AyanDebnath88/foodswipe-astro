@@ -718,7 +718,7 @@ export function DishSwipeArea({ cuisineId, restaurantName, restaurantAddress, ro
         </p>
       )}
 
-      <div className="flex items-center justify-center gap-4 mt-8" style={{ marginBottom: "var(--fs-thumb-clearance)" }}>
+      <div className="flex items-center justify-center gap-4 mt-6">
         <Button
           variant="outline"
           size="icon"

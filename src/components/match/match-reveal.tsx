@@ -19,7 +19,7 @@ import { CUISINE_EMOJI } from "@/lib/cuisines";
 import { fetchSubcuisines } from "@/lib/subcuisine";
 import { mergeSponsoredFirst, type SponsoredRestaurant } from "@/lib/sponsored";
 import { priceLevelToSymbol } from "@/lib/google-places";
-import { getCuisineHeroImage } from "@/lib/dish-images";
+import { getCuisineImageVariant } from "@/lib/dish-images";
 import type { Restaurant } from "@/pages/api/find-restaurants";
 
 // Cuisines with enough real internal breadth to get a second narrowing
@@ -457,15 +457,16 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
             {places.map((place, i) => {
               const sponsored = "isSponsored" in place;
               const address = sponsored ? place.address : place.vicinity;
-              // No real per-restaurant photography exists yet (no such asset
-              // pipeline has ever been built for this app -- only cuisine
-              // and catalog-dish stock shots do). This is the honest
-              // fallback the user asked for: a real restaurant photo when
-              // one exists (nothing does today, so this branch is always
-              // the else for now, but the structure is ready the day one
-              // does), the cuisine's own hero shot otherwise -- never a
-              // blank/generic placeholder.
-              const cardImage = getCuisineHeroImage(cuisineId);
+              // No real per-restaurant photography exists (Google Places
+              // photos aren't plumbed through). Using the single cuisine hero
+              // for every card made every restaurant look identical -- the
+              // bug this fixes. getCuisineImageVariant spreads deterministically
+              // across the cuisine's real dish photos, keyed by restaurant
+              // name, so each card differs and stays stable across re-renders;
+              // it falls back to the hero, then the icon, for a cuisine with
+              // no dish-photo folder. Still honest cuisine photography, never
+              // a fabricated claim that this is the restaurant's own shot.
+              const cardImage = getCuisineImageVariant(cuisineId, place.name);
               return (
                 <Card key={`${place.name}-${i}`} variant="solid" className="p-5 flex flex-col overflow-hidden">
                   {cardImage && (

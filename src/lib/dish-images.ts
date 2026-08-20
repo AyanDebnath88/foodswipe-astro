@@ -63,11 +63,20 @@ function significantWords(name: string): string[] {
 const DISH_ALIAS_MAP: Map<string, string> = new Map();
 // name -> significant-word set, built once for the fuzzy pass.
 const DISH_WORDS: Array<{ path: string; words: Set<string> }> = [];
+// cuisineId -> every dish photo under /images/dishes/<cuisineId>/, for the
+// per-restaurant image variant below.
+const DISHES_BY_CUISINE: Map<string, string[]> = new Map();
 for (const entry of DISH_DATA.dishes) {
   for (const alias of entry.aliases) {
     if (!DISH_ALIAS_MAP.has(alias)) DISH_ALIAS_MAP.set(alias, entry.path);
   }
   DISH_WORDS.push({ path: entry.path, words: new Set(significantWords(entry.name)) });
+  const m = entry.path.match(/^\/images\/dishes\/([^/]+)\//);
+  if (m) {
+    const arr = DISHES_BY_CUISINE.get(m[1]) ?? [];
+    arr.push(entry.path);
+    DISHES_BY_CUISINE.set(m[1], arr);
+  }
 }
 
 // Regional/language name variants for the same dish -- deliberately short.
@@ -89,6 +98,26 @@ function applySynonyms(words: string[]): string[] {
 /** A cuisine or Indian-subcuisine hero photo, if one has been generated. */
 export function getCuisineHeroImage(cuisineId: string): string | undefined {
   return DISH_DATA.heroes[cuisineId];
+}
+
+/**
+ * A stable, per-restaurant image for a matched cuisine. No real
+ * per-restaurant photography exists (Google Places photos aren't plumbed
+ * through), and using the single cuisine hero for every card made every
+ * restaurant look identical. This spreads deterministically across that
+ * cuisine's real dish photos, keyed by `seed` (the restaurant name), so each
+ * card differs but stays the same across re-renders. Falls back to the
+ * cuisine hero, then undefined (caller shows its icon), for a cuisine with
+ * no dish-photo folder -- e.g. AI-suggested `ai-<slug>` ids.
+ */
+export function getCuisineImageVariant(cuisineId: string, seed: string): string | undefined {
+  const pool = DISHES_BY_CUISINE.get(cuisineId);
+  if (pool && pool.length > 0) {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+    return pool[hash % pool.length];
+  }
+  return getCuisineHeroImage(cuisineId);
 }
 
 /**

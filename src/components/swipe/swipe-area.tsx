@@ -275,7 +275,7 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
         </div>
       )}
 
-      <div className="relative w-full h-[500px] flex items-center justify-center">
+      <div className="relative w-full h-[54vh] min-h-[340px] max-h-[500px] flex items-center justify-center">
         {localDeck.length > 0 ? (
           [...localDeck]
             .map((cuisine, index) => (
@@ -317,7 +317,7 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
       )}
 
       {localDeck.length > 0 && (
-        <div className="flex items-center justify-center gap-4 mt-8" style={{ marginBottom: "var(--fs-thumb-clearance)" }}>
+        <div className="flex items-center justify-center gap-4 mt-6">
           <Button
             variant="outline"
             size="icon"
