@@ -260,7 +260,8 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
   }
 
   return (
-    <div className="w-full max-w-sm flex flex-col items-center">
+    <div className="flex w-full max-w-sm flex-col items-center lg:max-w-[var(--fs-max-content)] lg:flex-row lg:items-start lg:justify-center lg:gap-10">
+    <div className="flex w-full flex-col items-center lg:sticky lg:top-[calc(var(--fs-appbar-h)+24px)] lg:w-[var(--fs-card-max)] lg:shrink-0">
       {isSolo && (
         <div className="w-full mb-4 rounded-[var(--fs-r-md)] border border-[var(--fs-gold-line)] bg-[var(--fs-gold-tint)] p-4 text-center">
           <p className="font-body text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
@@ -341,19 +342,24 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
           </Button>
         </div>
       )}
+    </div>
 
       {/*
         Dish glossary for the currently active card -- user feedback: nobody
         swiping past "Vietnamese" knows what pho or banh mi actually are.
-        Keyed off currentCuisine so it updates as the deck advances; scrolled
-        to, not part of the card itself.
+        Keyed off currentCuisine so it updates as the deck advances. Desktop:
+        a right-side rail next to the sticky card (user feedback: stacking it
+        below made the desktop page feel like an afterthought scroll). Mobile:
+        unchanged vertical flow below the deck.
       */}
       {currentCuisine && (
-        <CuisineDishGuide
-          cuisineId={currentCuisine.id}
-          cuisineName={currentCuisine.name}
-          dishes={currentCuisine.dishes}
-        />
+        <div className="mt-10 w-full lg:mt-0 lg:max-w-2xl lg:flex-1">
+          <CuisineDishGuide
+            cuisineId={currentCuisine.id}
+            cuisineName={currentCuisine.name}
+            dishes={currentCuisine.dishes}
+          />
+        </div>
       )}
     </div>
   );
