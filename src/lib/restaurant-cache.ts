@@ -21,6 +21,8 @@ export interface CachedRestaurant {
   mapsUrl: string;
   /** Restaurant's own phone number, null when Google has none on file. Never invented. */
   phone: string | null;
+  /** Places API photo resource name, null when Google has none. See src/pages/api/place-photo.ts. */
+  photoRef: string | null;
   /** Up to 3 dishes from restaurant_menu_items, when Track B has enriched this restaurant. Empty otherwise -- absence, never a fabricated preview. */
   menuPreview: MenuPreviewItem[];
 }
@@ -62,7 +64,9 @@ export async function readRestaurantCache(
   // alone before this function got a chance to reprioritize).
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id, name, address, rating, review_count, price_level, website, maps_url, phone, cuisine_tags")
+    .select(
+      "id, name, address, rating, review_count, price_level, website, maps_url, phone, photo_ref, cuisine_tags"
+    )
     .gte("latitude", latitude - BOUNDING_BOX_DEGREES)
     .lte("latitude", latitude + BOUNDING_BOX_DEGREES)
     .gte("longitude", longitude - BOUNDING_BOX_DEGREES)
@@ -96,6 +100,7 @@ export async function readRestaurantCache(
     website: row.website as string | null,
     mapsUrl: row.maps_url as string,
     phone: row.phone as string | null,
+    photoRef: row.photo_ref as string | null,
     menuPreview: menuByRestaurant.get(row.id as string) ?? [],
   }));
 
@@ -137,6 +142,7 @@ export async function writeRestaurantCache(
         p_website: r.website,
         p_maps_url: r.mapsUrl,
         p_phone: r.phone,
+        p_photo_ref: r.photoRef,
         p_cuisine_tags: [cuisineTag],
       });
       if (error) {

@@ -9,7 +9,7 @@
 // already matched, never the match itself), and a manual "type a name"
 // fallback for when geolocation isn't available or nothing nearby matches.
 import React, { useEffect, useState } from "react";
-import { Heart, Utensils, Loader2, MapPin, Star } from "lucide-react";
+import { Heart, Utensils, UtensilsCrossed, Loader2, MapPin, Star, ExternalLink, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -458,7 +458,20 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
               results. Type a restaurant name below if you already have somewhere in mind.
             </p>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/*
+            Full-bleed photo cards (user feedback: the old white cards with a
+            cropped 28px photo strip felt "dry, no images, no excitement").
+            Real Google Places photo first (place.photoUrl, proxied through
+            /api/place-photo -- see find-restaurants.ts) since Google's own
+            listing for THIS exact restaurant is more honest than a generic
+            cuisine shot; getCuisineImageVariant only backs it up when Google
+            has no photo on file, never claimed as the restaurant's own.
+            Smaller/denser grid (was 3 cols of tall cards, now up to 4 of
+            short ones) and every field lives on the photo behind a scrim,
+            same full-bleed-photography language as the swipe deck itself
+            rather than a flat white card bolted onto the celebration.
+          */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {places.map((place, i) => {
               const sponsored = "isSponsored" in place;
               const address = sponsored ? place.address : place.vicinity;
@@ -472,124 +485,88 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
               // honest labelling below and for what gets carried forward to
               // the order screen.
               const isMapsFallback = !sponsored && place.website?.includes("maps.google");
-              // No real per-restaurant photography exists (Google Places
-              // photos aren't plumbed through). Using the single cuisine hero
-              // for every card made every restaurant look identical -- the
-              // bug this fixes. getCuisineImageVariant spreads deterministically
-              // across the cuisine's real dish photos, keyed by restaurant
-              // name, so each card differs and stays stable across re-renders;
-              // it falls back to the hero, then the icon, for a cuisine with
-              // no dish-photo folder. Still honest cuisine photography, never
-              // a fabricated claim that this is the restaurant's own shot.
-              const cardImage = getCuisineImageVariant(cuisineId, place.name);
+              const realPhoto = sponsored ? null : place.photoUrl;
+              const cardImage = realPhoto ?? getCuisineImageVariant(cuisineId, place.name);
               return (
-                <Card key={`${place.name}-${i}`} variant="solid" className="p-5 flex flex-col overflow-hidden">
-                  {cardImage && (
-                    <div className="-mx-5 -mt-5 mb-3 h-28 relative overflow-hidden">
-                      <img
-                        src={cardImage}
-                        alt=""
-                        aria-hidden="true"
-                        className="absolute inset-0 w-full h-full object-cover"
-                        draggable={false}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
+                <div
+                  key={`${place.name}-${i}`}
+                  className="group relative aspect-[3/4] overflow-hidden rounded-[var(--fs-r-xl)] bg-[var(--fs-ink)] shadow-[var(--fs-e-1)] animate-page-load"
+                  style={{ "--stagger-delay": `${Math.min(i, 8) * 0.05}s` } as React.CSSProperties}
+                >
+                  {cardImage ? (
+                    <img
+                      src={cardImage}
+                      alt=""
+                      aria-hidden="true"
+                      draggable={false}
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <UtensilsCrossed className="h-8 w-8 text-[var(--fs-on-ink)]/60" aria-hidden="true" />
                     </div>
                   )}
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-headline text-lg leading-tight">{place.name}</h3>
-                    {sponsored && <Badge variant="sponsored">{place.sponsorshipLabel}</Badge>}
-                  </div>
-                  {address && (
-                    <p className="font-body text-xs text-muted-foreground mt-1.5 line-clamp-2">{address}</p>
+                  <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
+
+                  {sponsored && (
+                    <div className="absolute left-2.5 top-2.5 flex flex-col items-start gap-1">
+                      <Badge variant="glass">{place.sponsorshipLabel}</Badge>
+                      {/* Disclosure, not decoration -- see delivery-options.tsx's affiliate note for the same rule: a paid placement must always say who paid. */}
+                      {place.advertiserName && (
+                        <span className="rounded-[var(--fs-r-pill)] bg-[var(--fs-glass)] px-2 py-0.5 text-[10px] text-[var(--fs-on-dark-3)] backdrop-blur-[6px]">
+                          Paid by {place.advertiserName}
+                        </span>
+                      )}
+                    </div>
                   )}
                   {!sponsored && (place.rating !== null || place.priceLevel !== null) && (
-                    <div className="flex items-center gap-2 mt-1.5 font-body text-xs">
+                    <div className="absolute right-2.5 top-2.5 flex items-center gap-1 rounded-[var(--fs-r-pill)] bg-[var(--fs-glass)] px-2 py-1 text-[11px] font-body backdrop-blur-[6px]">
                       {place.rating !== null && (
-                        <span className="inline-flex items-center gap-1 text-foreground font-semibold">
-                          <Star className="h-3.5 w-3.5 fill-accent text-accent" />
+                        <span className="inline-flex items-center gap-0.5 font-semibold text-[var(--fs-on-ink)]">
+                          <Star className="h-3 w-3 fill-[var(--fs-gold)] text-[var(--fs-gold)]" />
                           {place.rating.toFixed(1)}
-                          {place.reviewCount !== null && (
-                            <span className="text-muted-foreground font-normal">({place.reviewCount})</span>
-                          )}
                         </span>
                       )}
                       {priceLevelToSymbol(place.priceLevel) && (
-                        <span className="text-muted-foreground">{priceLevelToSymbol(place.priceLevel)}</span>
+                        <span className="text-[var(--fs-on-dark-3)]">{priceLevelToSymbol(place.priceLevel)}</span>
                       )}
                     </div>
                   )}
-                  {sponsored && place.advertiserName && (
-                    <p className="font-body text-[11px] text-muted-foreground mt-1">
-                      Paid placement by {place.advertiserName}
-                    </p>
-                  )}
-                  {/*
-                    Menu preview (Track B, 0019_restaurant_menu_items.sql):
-                    dish names pulled from the restaurant's own website, not
-                    Zomato/Swiggy (see clever-baking-map.md for why). Only
-                    ever a handful of real dishes -- never a fabricated
-                    "sample menu" when enrichment hasn't reached this
-                    restaurant yet, which is most of them until the
-                    enrichment script has had time to work through the cache.
-                  */}
-                  {!sponsored && place.menuPreview.length > 0 && (
-                    <div className="mt-2 rounded-lg bg-secondary/10 px-2.5 py-2">
-                      <p className="font-body text-[10px] uppercase font-bold tracking-wide text-secondary-foreground/70 mb-1">
-                        On the menu
-                      </p>
-                      <ul className="font-body text-xs text-foreground space-y-0.5">
-                        {place.menuPreview.map((item) => (
-                          <li key={item.dishName} className="flex items-baseline justify-between gap-2">
-                            <span className="truncate">{item.dishName}</span>
-                            {item.price !== null && (
-                              <span className="text-muted-foreground shrink-0">₹{item.price}</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  <div className="mt-4 flex flex-col gap-2">
-                    <Button
-                      onClick={() => goToDishes(place.name, address, place.website, phone)}
-                      className="w-full rounded-2xl h-10 text-sm"
-                    >
-                      Swipe dishes here
-                    </Button>
-                    <div className="flex items-center justify-center gap-3">
+
+                  <div className="absolute inset-x-0 bottom-0 p-3 text-[var(--fs-on-ink)]">
+                    <h3 className="font-headline text-sm font-semibold leading-tight line-clamp-1">{place.name}</h3>
+                    {address && <p className="mt-0.5 text-[11px] text-[var(--fs-on-dark-3)] line-clamp-1">{address}</p>}
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => goToDishes(place.name, address, place.website, phone)}
+                        className="flex-1 rounded-[var(--fs-r-pill)] bg-[var(--fs-on-ink)] px-2.5 py-1.5 text-center font-body text-[11px] font-semibold text-[var(--fs-text)] transition-shadow hover:shadow-[var(--fs-e-primary)]"
+                      >
+                        Swipe dishes here
+                      </button>
                       {place.website && (
                         <a
                           href={place.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
+                          aria-label={isMapsFallback ? "View on Google Maps" : "View details"}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--fs-glass)] backdrop-blur-[6px] hover:bg-[var(--fs-glass-line)]"
                         >
-                          {/*
-                            The Maps-link fallback for a website-less restaurant
-                            (see readRestaurantCache()/find-restaurants.ts:
-                            `website: r.website ?? r.mapsUrl`) -- label it
-                            honestly rather than calling a Maps redirect
-                            "View details".
-                          */}
-                          {!sponsored && place.menuPreview.length > 0
-                            ? "View full menu"
-                            : isMapsFallback
-                              ? "View on Google Maps"
-                              : "View details"}
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                         </a>
                       )}
                       {phone && (
                         <a
                           href={`tel:${phone}`}
-                          className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
+                          aria-label={`Call ${phone}`}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--fs-glass)] backdrop-blur-[6px] hover:bg-[var(--fs-glass-line)]"
                         >
-                          Call {phone}
+                          <Phone className="h-3.5 w-3.5" aria-hidden="true" />
                         </a>
                       )}
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>

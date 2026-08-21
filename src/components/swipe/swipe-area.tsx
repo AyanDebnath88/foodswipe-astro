@@ -260,7 +260,7 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
   }
 
   return (
-    <div className="flex w-full max-w-sm flex-col items-center lg:max-w-[var(--fs-max-content)] lg:flex-row lg:items-start lg:justify-center lg:gap-10">
+    <div className="flex w-full max-w-sm flex-col items-center lg:max-w-[1040px] lg:flex-row lg:items-start lg:justify-center lg:gap-12">
     <div className="flex w-full flex-col items-center lg:sticky lg:top-[calc(var(--fs-appbar-h)+24px)] lg:w-[var(--fs-card-max)] lg:shrink-0">
       {isSolo && (
         <div className="w-full mb-4 rounded-[var(--fs-r-md)] border border-[var(--fs-gold-line)] bg-[var(--fs-gold-tint)] p-4 text-center">
@@ -356,7 +356,7 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
         says so). Mobile: unchanged vertical flow below the deck.
       */}
       {currentCuisine && (
-        <div className="mt-10 w-full lg:mt-0 lg:max-w-[360px] lg:shrink">
+        <div className="mt-10 w-full lg:mt-0 lg:max-w-[420px] lg:shrink">
           <CuisineDishGuide
             cuisineId={currentCuisine.id}
             cuisineName={currentCuisine.name}

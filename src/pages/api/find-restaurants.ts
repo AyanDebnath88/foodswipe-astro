@@ -52,8 +52,21 @@ export interface Restaurant {
   website: string;
   /** Restaurant's own phone number, null when unknown. Never invented. */
   phone: string | null;
+  /**
+   * A real photo of THIS restaurant (proxied through /api/place-photo, see
+   * photoUrlFor() below), null when Google has none on file. The UI's
+   * fallback for null is the cuisine's own stock photo (getCuisineImageVariant
+   * in match-reveal.tsx) -- never a claim that a generic shot is this
+   * restaurant's own.
+   */
+  photoUrl: string | null;
   /** Up to 3 dishes pulled from the restaurant's own site (Track B, 0019). Empty when not yet enriched -- never fabricated. */
   menuPreview: MenuPreviewItem[];
+}
+
+/** Builds the app's own proxied photo URL from a Places API photo resource name -- see /api/place-photo.ts for why this can't just be Google's URL directly (it would carry the billed API key). */
+function photoUrlFor(photoRef: string | null | undefined): string | null {
+  return photoRef ? `/api/place-photo?ref=${encodeURIComponent(photoRef)}` : null;
 }
 
 function mockRestaurants(cuisine: string, latitude: number, longitude: number): Restaurant[] {
@@ -78,6 +91,7 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       reviewCount: null,
       priceLevel: null,
       phone: null,
+      photoUrl: null,
       menuPreview: [],
       website: `https://www.google.com/search?q=${encodeURIComponent(mockPrefix + " " + cuisine + " restaurant " + addressCity)}`,
     },
@@ -88,6 +102,7 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       reviewCount: null,
       priceLevel: null,
       phone: null,
+      photoUrl: null,
       menuPreview: [],
       website: `https://www.google.com/search?q=${encodeURIComponent(cuisine + " restaurant Salt Lake " + addressCity)}`,
     },
@@ -98,6 +113,7 @@ function mockRestaurants(cuisine: string, latitude: number, longitude: number): 
       reviewCount: null,
       priceLevel: null,
       phone: null,
+      photoUrl: null,
       menuPreview: [],
       website: `https://www.google.com/search?q=${encodeURIComponent("Bukhara " + cuisine + " restaurant " + addressCity)}`,
     },
@@ -153,6 +169,7 @@ async function fetchFromGeoapify(
       reviewCount: null,
       priceLevel: null,
       phone,
+      photoUrl: null,
       menuPreview: [],
       website,
     };
@@ -178,6 +195,7 @@ async function fetchFromGeoapify(
       reviewCount: g.reviewCount,
       priceLevel: g.priceLevel,
       phone: g.phone,
+      photoUrl: g.photoUrl,
       menuPreview: g.menuPreview,
       website: g.website,
     });
@@ -225,6 +243,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         reviewCount: r.reviewCount,
         priceLevel: r.priceLevel,
         phone: r.phone,
+        photoUrl: photoUrlFor(r.photoRef),
         menuPreview: r.menuPreview,
         website: r.website ?? r.mapsUrl,
       }));
@@ -252,6 +271,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             reviewCount: p.reviewCount,
             priceLevel: p.priceLevel,
             phone: p.phone,
+            photoUrl: photoUrlFor(p.photoRef),
             menuPreview: [] as Restaurant["menuPreview"], // fresh from Google -- Track B enrichment hasn't run for this restaurant yet
             website: p.website ?? p.mapsUrl,
           }))

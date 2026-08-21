@@ -92,6 +92,7 @@ import { currentPathForRedirect, redirectWithNotice } from "@/lib/notices";
 import { shuffle } from "@/lib/utils";
 import { DeliveryOptions } from "@/components/delivery/delivery-options";
 import { FeedbackPrompt } from "@/components/feedback/feedback-prompt";
+import { getDishImage } from "@/lib/dish-images";
 
 interface DishSwipeAreaProps {
   cuisineId: string;
@@ -482,35 +483,68 @@ export function DishSwipeArea({
   // Final summary -- reached by choosing "Done", never forced by the server.
   // ---------------------------------------------------------------------------
   if (showSummary) {
+    // Real photo for the moment, not another plain icon-circle (user
+    // feedback: this screen "reads dry, no images, no excitement" against
+    // an app that's full-bleed photography everywhere else). The first
+    // agreed dish's own photo when the catalog has one -- honest fallback
+    // to the icon, same contract getDishImage() already guarantees.
+    const heroDish = agreed[0]?.dishName ?? null;
+    const heroImage = heroDish ? getDishImage(heroDish, cuisineId) : undefined;
     return (
-      <div className="w-full max-w-md rounded-2xl border-2 border-primary/30 bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
-        <div className="mx-auto bg-primary/20 p-3 rounded-full mb-3 w-fit">
-          <ClipboardList className="h-8 w-8 text-primary" />
+      <div className="w-full max-w-md overflow-hidden rounded-[var(--fs-r-xl)] border-2 border-primary/30 bg-card/75 shadow-[var(--fs-e-2)] backdrop-blur-md animate-page-load">
+        <div className="relative h-40 w-full overflow-hidden bg-[var(--fs-ink)]">
+          {heroImage ? (
+            <img
+              src={heroImage}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 h-full w-full object-cover animate-ken-burns-a"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <ClipboardList className="h-10 w-10 text-[var(--fs-on-ink)]/70" aria-hidden="true" />
+            </div>
+          )}
+          <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
+          <div className="absolute inset-x-0 bottom-0 p-5 text-center text-[var(--fs-on-ink)]">
+            <h3 className="font-display text-2xl font-extrabold uppercase tracking-[-.02em]">Your table's order</h3>
+            <p className="mt-0.5 font-body text-sm text-[var(--fs-on-dark-3)]">
+              {agreed.length > 0
+                ? `${agreed.length} dish${agreed.length === 1 ? "" : "es"} everyone agreed on.`
+                : "Nothing agreed on yet."}
+            </p>
+          </div>
         </div>
-        <h3 className="text-2xl font-headline">Your table's order</h3>
-        <p className="text-muted-foreground mt-1 font-body text-sm">
-          {agreed.length > 0
-            ? `${agreed.length} dish${agreed.length === 1 ? "" : "es"} everyone agreed on.`
-            : "Nothing agreed on yet."}
-        </p>
 
+        <div className="p-8 pt-6 text-center">
         {agreed.length > 0 ? (
-          <ul className="mt-6 space-y-2 text-left">
-            {agreed.map((match) => (
-              <li
-                key={match.id}
-                className="flex items-center gap-3 bg-background/60 p-3 rounded-xl border border-primary/10"
-              >
-                <Check className="h-4 w-4 text-primary shrink-0" />
-                <div className="min-w-0">
-                  <p className="font-body text-sm font-semibold text-foreground truncate">{match.dishName}</p>
-                  <p className="font-body text-xs text-muted-foreground truncate">{match.restaurantName}</p>
-                </div>
-              </li>
-            ))}
+          <ul className="space-y-2 text-left">
+            {agreed.map((match) => {
+              const thumb = getDishImage(match.dishName, cuisineId);
+              return (
+                <li
+                  key={match.id}
+                  className="flex items-center gap-3 bg-background/60 p-2.5 rounded-[var(--fs-r-lg)] border border-primary/10"
+                >
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[var(--fs-r-sm)] bg-[var(--fs-ink)]">
+                    {thumb ? (
+                      <img src={thumb} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Check className="h-4 w-4 text-[var(--fs-on-ink)]/70" aria-hidden="true" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-headline text-sm font-semibold text-foreground truncate">{match.dishName}</p>
+                    <p className="font-body text-xs text-muted-foreground truncate">{match.restaurantName}</p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <p className="text-muted-foreground font-body text-sm mt-6">
+          <p className="text-muted-foreground font-body text-sm">
             The group didn't reach unanimity on any dish. Try another restaurant, or keep swiping -- a dish
             only lands here once <em>everyone</em> in the room says yes.
           </p>
@@ -560,6 +594,7 @@ export function DishSwipeArea({
           <Button asChild className="w-full rounded-2xl h-11">
             <a href="/rooms">Back to rooms / start over</a>
           </Button>
+        </div>
         </div>
       </div>
     );

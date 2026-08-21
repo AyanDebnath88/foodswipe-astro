@@ -23,6 +23,7 @@ const FIELD_MASK = [
   "places.websiteUri",
   "places.googleMapsUri",
   "places.nationalPhoneNumber",
+  "places.photos.name",
 ].join(",");
 
 export interface GooglePlaceResult {
@@ -39,6 +40,14 @@ export interface GooglePlaceResult {
   mapsUrl: string;
   /** Restaurant's own phone number, null when Google has none on file. Never invented. */
   phone: string | null;
+  /**
+   * Places API "resource name" of the restaurant's own first photo (e.g.
+   * "places/ChIJ.../photos/AUy1..."), null when Google has none. This is NOT
+   * a fetchable URL by itself -- it's fed to /api/place-photo, which resolves
+   * it server-side (see that route for why: resolving it directly would put
+   * the billed API key in a client-visible URL).
+   */
+  photoRef: string | null;
 }
 
 // Google's PRICE_LEVEL_* string enum -> the 0-4 int this app stores/renders.
@@ -109,6 +118,9 @@ export async function fetchFromGooglePlaces(
     }
 
     const priceLevelRaw = typeof place.priceLevel === "string" ? place.priceLevel : null;
+    const photos = Array.isArray(place.photos) ? place.photos : [];
+    const firstPhoto = photos[0] as { name?: string } | undefined;
+    const photoRef = typeof firstPhoto?.name === "string" ? firstPhoto.name : null;
 
     results.push({
       googlePlaceId: id,
@@ -121,6 +133,7 @@ export async function fetchFromGooglePlaces(
       priceLevel: priceLevelRaw ? (PRICE_LEVEL_MAP[priceLevelRaw] ?? null) : null,
       website: typeof place.websiteUri === "string" ? place.websiteUri : null,
       phone: typeof place.nationalPhoneNumber === "string" ? place.nationalPhoneNumber : null,
+      photoRef,
       mapsUrl:
         typeof place.googleMapsUri === "string"
           ? place.googleMapsUri
