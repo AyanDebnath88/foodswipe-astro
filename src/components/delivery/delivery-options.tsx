@@ -31,7 +31,7 @@
 // match/dish pages belong to another agent this phase -- the integration
 // note is in the build log. It takes plain props and needs no context.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ExternalLink, MapPin, Truck } from "lucide-react";
+import { ExternalLink, MapPin, Phone, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { recordMonetizationEvent } from "./track-click";
 
@@ -51,6 +51,15 @@ export interface DeliveryOptionsProps {
   restaurantName: string;
   /** From a real search result, when there was one -- see [restaurant].astro. Sharpens the Zomato/Swiggy/etc search query so the platform's OWN search is more likely to land on the right listing first. Never guarantees landing directly on that restaurant's menu page -- this app has no way to know a restaurant's real Zomato/Swiggy listing id without either their API (not available to us) or scraping their site (explicitly rejected, see clever-baking-map.md). It's a better search, not a direct link. */
   restaurantAddress?: string;
+  /**
+   * The restaurant's own site, when the search result had one -- already
+   * collapsed to a Google Maps link at the API layer when there's no real
+   * site (find-restaurants.ts: `website: r.website ?? r.mapsUrl`), so this
+   * is always a real, working link when present, never a search box.
+   */
+  restaurantWebsite?: string;
+  /** Real phone number from Google Places (0020_restaurant_phone.sql), when known. Never invented. */
+  restaurantPhone?: string;
   /** Pass these when the page already knows them; otherwise the user is
    *  offered a "use my location" button rather than being geolocated
    *  unprompted. */
@@ -67,6 +76,8 @@ type Status = "idle" | "locating" | "loading" | "ready" | "error";
 export function DeliveryOptions({
   restaurantName,
   restaurantAddress,
+  restaurantWebsite,
+  restaurantPhone,
   latitude,
   longitude,
   sessionId,
@@ -158,75 +169,131 @@ export function DeliveryOptions({
     });
   };
 
+  // The restaurant's own site is already collapsed to a Maps link at the API
+  // layer when there's no real site (find-restaurants.ts) -- tell the two
+  // apart here so the label is honest ("View on Google Maps" vs "Visit
+  // website") the same way match-reveal.tsx's restaurant card already does.
+  const isMapsFallback = restaurantWebsite?.includes("maps.google") ?? false;
+  const hasRealOptions = Boolean(restaurantWebsite) || Boolean(restaurantPhone);
+
+  // The real, always-available options -- no geolocation needed, no search
+  // box, no guessing. This is the fix for the reported bug: these used to be
+  // missing entirely, leaving only a Zomato/Swiggy SEARCH as the sole option
+  // once a room had already swiped its way to a decision.
+  const realOptions = hasRealOptions ? (
+    <div className="flex flex-col gap-2">
+      {restaurantWebsite && (
+        <a
+          href={restaurantWebsite}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between rounded-xl border border-input bg-background px-4 py-3 font-body transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <span>{isMapsFallback ? "View on Google Maps" : "Visit restaurant's website"}</span>
+          <ExternalLink className="h-4 w-4 opacity-60" />
+        </a>
+      )}
+      {restaurantPhone && (
+        <a
+          href={`tel:${restaurantPhone}`}
+          className="flex items-center justify-between rounded-xl border border-input bg-background px-4 py-3 font-body transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <span>Call {restaurantPhone}</span>
+          <Phone className="h-4 w-4 opacity-60" />
+        </a>
+      )}
+    </div>
+  ) : null;
+
+  // The delivery-app section: a search, not a guaranteed direct link (see
+  // this component's header comment and delivery-links.ts's own). Labelled
+  // "Search X" throughout rather than a bare service name, so the app never
+  // implies a direct deep link it can't actually offer.
+  let searchSection: React.ReactNode;
   if (status === "idle") {
-    return (
-      <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card/40 p-6 text-center">
+    searchSection = (
+      <div className="text-center">
         <Truck className="h-6 w-6 text-primary mx-auto mb-3" />
-        <p className="font-body text-muted-foreground mb-4">
-          See which delivery apps carry {restaurantName}.
+        <p className="font-body text-muted-foreground mb-4 text-sm">
+          Search delivery apps available in your area.
         </p>
-        <Button onClick={requestLocation} className="rounded-2xl h-11 px-6">
+        <Button variant="outline" onClick={requestLocation} className="rounded-2xl h-11 px-6">
           <MapPin className="h-4 w-4" />
           Use my location
         </Button>
       </div>
     );
-  }
-
-  if (status === "locating" || status === "loading") {
-    return (
-      <p className="font-body text-muted-foreground text-center py-6">
+  } else if (status === "locating" || status === "loading") {
+    searchSection = (
+      <p className="font-body text-muted-foreground text-center py-4 text-sm">
         {status === "locating" ? "Getting your location..." : "Finding delivery options..."}
       </p>
     );
-  }
-
-  if (status === "error" || !data) {
-    return (
-      <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card/40 p-6 text-center">
-        <p className="font-body text-muted-foreground mb-4">{message ?? "Couldn't load delivery options."}</p>
+  } else if (status === "error" || !data) {
+    searchSection = (
+      <div className="text-center">
+        <p className="font-body text-muted-foreground mb-4 text-sm">
+          {message ?? "Couldn't load delivery options."}
+        </p>
         <Button variant="outline" onClick={requestLocation} className="rounded-2xl">
           Try again
         </Button>
       </div>
+    );
+  } else {
+    searchSection = (
+      <>
+        <ul className="flex flex-col gap-2">
+          {data.services.map((link) => (
+            <li key={link.serviceName}>
+              <a
+                href={link.url}
+                target="_blank"
+                // rel="sponsored" is the honest HTML annotation for a link that
+                // may earn a commission, and it is applied per-link rather than
+                // to the whole list -- an untagged link is not sponsored and
+                // must not say it is.
+                rel={link.affiliate ? "sponsored nofollow noopener noreferrer" : "noopener noreferrer"}
+                onClick={() => handleClick(link)}
+                className="flex items-center justify-between rounded-xl border border-input bg-background px-4 py-3 font-body transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <span>Search {link.serviceName}</span>
+                <ExternalLink className="h-4 w-4 opacity-60" />
+              </a>
+            </li>
+          ))}
+        </ul>
+        {data.affiliateDisclosure && (
+          <p className="font-body text-xs text-muted-foreground mt-4">
+            Some of these are affiliate links: if you order through one, Food Swipe may earn a
+            commission. It costs you nothing extra, and it never changes which restaurants or
+            cuisines you're shown.
+          </p>
+        )}
+      </>
     );
   }
 
   return (
     <div className="rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card/40 p-6">
       <h3 className="font-headline text-xl mb-1">Order {restaurantName}</h3>
-      <p className="font-body text-sm text-muted-foreground mb-4">
-        Search for this restaurant on the delivery apps available in your area.
-      </p>
 
-      <ul className="flex flex-col gap-2">
-        {data.services.map((link) => (
-          <li key={link.serviceName}>
-            <a
-              href={link.url}
-              target="_blank"
-              // rel="sponsored" is the honest HTML annotation for a link that
-              // may earn a commission, and it is applied per-link rather than
-              // to the whole list -- an untagged link is not sponsored and
-              // must not say it is.
-              rel={link.affiliate ? "sponsored nofollow noopener noreferrer" : "noopener noreferrer"}
-              onClick={() => handleClick(link)}
-              className="flex items-center justify-between rounded-xl border border-input bg-background px-4 py-3 font-body transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <span>{link.serviceName}</span>
-              <ExternalLink className="h-4 w-4 opacity-60" />
-            </a>
-          </li>
-        ))}
-      </ul>
-
-      {data.affiliateDisclosure && (
-        <p className="font-body text-xs text-muted-foreground mt-4">
-          Some of these are affiliate links: if you order through one, Food Swipe may earn a
-          commission. It costs you nothing extra, and it never changes which restaurants or
-          cuisines you're shown.
+      {hasRealOptions && (
+        <>
+          <p className="font-body text-sm text-muted-foreground mb-3">Real, direct options:</p>
+          {realOptions}
+          <p className="font-body text-xs uppercase tracking-wide text-muted-foreground mt-5 mb-2">
+            Or search a delivery app
+          </p>
+        </>
+      )}
+      {!hasRealOptions && (
+        <p className="font-body text-sm text-muted-foreground mb-4">
+          No direct site or phone number on file for this restaurant -- search a delivery app instead.
         </p>
       )}
+
+      {searchSection}
     </div>
   );
 }

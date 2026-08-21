@@ -22,6 +22,7 @@ const FIELD_MASK = [
   "places.priceLevel",
   "places.websiteUri",
   "places.googleMapsUri",
+  "places.nationalPhoneNumber",
 ].join(",");
 
 export interface GooglePlaceResult {
@@ -36,6 +37,8 @@ export interface GooglePlaceResult {
   priceLevel: number | null;
   website: string | null;
   mapsUrl: string;
+  /** Restaurant's own phone number, null when Google has none on file. Never invented. */
+  phone: string | null;
 }
 
 // Google's PRICE_LEVEL_* string enum -> the 0-4 int this app stores/renders.
@@ -117,6 +120,7 @@ export async function fetchFromGooglePlaces(
       reviewCount: typeof place.userRatingCount === "number" ? place.userRatingCount : null,
       priceLevel: priceLevelRaw ? (PRICE_LEVEL_MAP[priceLevelRaw] ?? null) : null,
       website: typeof place.websiteUri === "string" ? place.websiteUri : null,
+      phone: typeof place.nationalPhoneNumber === "string" ? place.nationalPhoneNumber : null,
       mapsUrl:
         typeof place.googleMapsUri === "string"
           ? place.googleMapsUri

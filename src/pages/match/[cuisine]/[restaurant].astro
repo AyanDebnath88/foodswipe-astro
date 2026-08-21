@@ -15,6 +15,11 @@ const roomCode = Astro.url.searchParams.get("room");
 // The "type a restaurant name yourself" path has no address to carry, and
 // that's fine: delivery-links.ts's search just falls back to name-only.
 const restaurantAddress = Astro.url.searchParams.get("address");
+// Same optional-carry pattern as address, from match-reveal.tsx's
+// goToDishes() -- real site/phone when the search result had them, absent
+// on the "type a restaurant name yourself" path.
+const restaurantWebsite = Astro.url.searchParams.get("website");
+const restaurantPhone = Astro.url.searchParams.get("phone");
 
 if (!cuisine || !restaurant || !roomCode || roomCode.trim().length !== 4) {
   return Astro.redirect("/rooms");
@@ -44,6 +49,8 @@ const restaurantName = decodeURIComponent(restaurant);
         cuisineId={cuisine}
         restaurantName={restaurantName}
         restaurantAddress={restaurantAddress ?? undefined}
+        restaurantWebsite={restaurantWebsite ?? undefined}
+        restaurantPhone={restaurantPhone ?? undefined}
         roomCode={roomCode}
         client:load
       />

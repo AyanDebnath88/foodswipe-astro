@@ -98,6 +98,10 @@ interface DishSwipeAreaProps {
   restaurantName: string;
   /** From the search result that led here, when there was one -- see [restaurant].astro. Sharpens the delivery-link search; never required. */
   restaurantAddress?: string;
+  /** The restaurant's own site (or a Maps fallback -- see find-restaurants.ts), when the search result had one. */
+  restaurantWebsite?: string;
+  /** Real phone number from Google Places (0020_restaurant_phone.sql), when known. */
+  restaurantPhone?: string;
   roomCode: string;
 }
 
@@ -105,7 +109,14 @@ function dishIdFor(name: string): string {
   return name.toLowerCase().replace(/\s+/g, "-");
 }
 
-export function DishSwipeArea({ cuisineId, restaurantName, restaurantAddress, roomCode }: DishSwipeAreaProps) {
+export function DishSwipeArea({
+  cuisineId,
+  restaurantName,
+  restaurantAddress,
+  restaurantWebsite,
+  restaurantPhone,
+  roomCode,
+}: DishSwipeAreaProps) {
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [room, setRoom] = useState<RoomState | null>(null);
@@ -516,6 +527,8 @@ export function DishSwipeArea({ cuisineId, restaurantName, restaurantAddress, ro
             <DeliveryOptions
               restaurantName={restaurantName}
               restaurantAddress={restaurantAddress}
+              restaurantWebsite={restaurantWebsite}
+              restaurantPhone={restaurantPhone}
               sessionId={room?.id}
               cuisineId={cuisineId}
             />

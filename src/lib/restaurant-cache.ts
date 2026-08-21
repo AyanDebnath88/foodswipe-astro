@@ -19,6 +19,8 @@ export interface CachedRestaurant {
   priceLevel: number | null;
   website: string | null;
   mapsUrl: string;
+  /** Restaurant's own phone number, null when Google has none on file. Never invented. */
+  phone: string | null;
   /** Up to 3 dishes from restaurant_menu_items, when Track B has enriched this restaurant. Empty otherwise -- absence, never a fabricated preview. */
   menuPreview: MenuPreviewItem[];
 }
@@ -60,7 +62,7 @@ export async function readRestaurantCache(
   // alone before this function got a chance to reprioritize).
   const { data, error } = await supabase
     .from("restaurants")
-    .select("id, name, address, rating, review_count, price_level, website, maps_url, cuisine_tags")
+    .select("id, name, address, rating, review_count, price_level, website, maps_url, phone, cuisine_tags")
     .gte("latitude", latitude - BOUNDING_BOX_DEGREES)
     .lte("latitude", latitude + BOUNDING_BOX_DEGREES)
     .gte("longitude", longitude - BOUNDING_BOX_DEGREES)
@@ -93,6 +95,7 @@ export async function readRestaurantCache(
     priceLevel: row.price_level as number | null,
     website: row.website as string | null,
     mapsUrl: row.maps_url as string,
+    phone: row.phone as string | null,
     menuPreview: menuByRestaurant.get(row.id as string) ?? [],
   }));
 
@@ -133,6 +136,7 @@ export async function writeRestaurantCache(
         p_price_level: r.priceLevel,
         p_website: r.website,
         p_maps_url: r.mapsUrl,
+        p_phone: r.phone,
         p_cuisine_tags: [cuisineTag],
       });
       if (error) {

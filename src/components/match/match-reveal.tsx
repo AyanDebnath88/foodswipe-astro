@@ -133,11 +133,16 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
     };
   }, [roomCode, cuisineId]);
 
-  const goToDishes = (name: string, address?: string | null) => {
+  const goToDishes = (name: string, address?: string | null, website?: string | null, phone?: string | null) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     let url = `/match/${cuisineId}/${encodeURIComponent(trimmed)}?room=${roomCode}`;
     if (address) url += `&address=${encodeURIComponent(address)}`;
+    // Carried to the order screen (delivery-options.tsx) so it can offer the
+    // restaurant's own site/phone instead of only a generic delivery-app
+    // search -- see 0020_restaurant_phone.sql for why phone exists at all.
+    if (website) url += `&website=${encodeURIComponent(website)}`;
+    if (phone) url += `&phone=${encodeURIComponent(phone)}`;
     window.location.href = url;
   };
 
@@ -457,6 +462,16 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
             {places.map((place, i) => {
               const sponsored = "isSponsored" in place;
               const address = sponsored ? place.address : place.vicinity;
+              // Only a real Restaurant carries a phone -- an advertiser's
+              // sponsored placement (0015_monetization.sql) has never asked
+              // for one, so it stays absent there rather than guessed.
+              const phone = sponsored ? null : place.phone;
+              // The client-side `website` field already collapses to
+              // `real site ?? Google Maps link` at the API layer (see
+              // find-restaurants.ts) -- this just tells the two apart for
+              // honest labelling below and for what gets carried forward to
+              // the order screen.
+              const isMapsFallback = !sponsored && place.website?.includes("maps.google");
               // No real per-restaurant photography exists (Google Places
               // photos aren't plumbed through). Using the single cuisine hero
               // for every card made every restaurant look identical -- the
@@ -537,32 +552,42 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                   )}
                   <div className="mt-4 flex flex-col gap-2">
                     <Button
-                      onClick={() => goToDishes(place.name, address)}
+                      onClick={() => goToDishes(place.name, address, place.website, phone)}
                       className="w-full rounded-2xl h-10 text-sm"
                     >
                       Swipe dishes here
                     </Button>
-                    {place.website && (
-                      <a
-                        href={place.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
-                      >
-                        {/*
-                          The Maps-link fallback for a website-less restaurant
-                          (see readRestaurantCache()/find-restaurants.ts:
-                          `website: r.website ?? r.mapsUrl`) -- label it
-                          honestly rather than calling a Maps redirect
-                          "View details".
-                        */}
-                        {!sponsored && place.menuPreview.length > 0
-                          ? "View full menu"
-                          : place.website.includes("maps.google")
-                            ? "View on Google Maps"
-                            : "View details"}
-                      </a>
-                    )}
+                    <div className="flex items-center justify-center gap-3">
+                      {place.website && (
+                        <a
+                          href={place.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
+                        >
+                          {/*
+                            The Maps-link fallback for a website-less restaurant
+                            (see readRestaurantCache()/find-restaurants.ts:
+                            `website: r.website ?? r.mapsUrl`) -- label it
+                            honestly rather than calling a Maps redirect
+                            "View details".
+                          */}
+                          {!sponsored && place.menuPreview.length > 0
+                            ? "View full menu"
+                            : isMapsFallback
+                              ? "View on Google Maps"
+                              : "View details"}
+                        </a>
+                      )}
+                      {phone && (
+                        <a
+                          href={`tel:${phone}`}
+                          className="font-body text-xs text-center text-muted-foreground hover:text-foreground underline"
+                        >
+                          Call {phone}
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </Card>
               );
