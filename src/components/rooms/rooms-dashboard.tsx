@@ -322,26 +322,45 @@ export function RoomsDashboard() {
       ) : (
         // ACTIVE ROOM DETAILS (WAITING ROOM HUB)
         <div className="max-w-xl mx-auto">
-          <div className="border-2 border-primary/20 bg-card/75 backdrop-blur-md rounded-3xl overflow-hidden shadow-2xl">
-            <div className="bg-primary/10 border-b border-primary/15 py-8 text-center">
-              <p className="font-body text-xs text-primary font-bold uppercase tracking-widest">
-                Your Private Room Code
-              </p>
-              <div className="flex items-center justify-center gap-3 mt-2">
-                <span className="text-5xl font-headline font-bold text-foreground tracking-widest select-all">
-                  {activeRoom.code}
-                </span>
-                <Button variant="ghost" size="icon" onClick={copyRoomCode} className="h-10 w-10 rounded-full">
-                  <Copy className="h-5 w-5 text-primary" />
-                  <span className="sr-only">Copy code</span>
-                </Button>
+          <div className="border border-[var(--fs-line)] bg-card shadow-[var(--fs-e-2)] rounded-[var(--fs-r-xl)] overflow-hidden">
+            {/*
+              Real photography instead of a flat tinted band (user feedback:
+              this whole hub "read as boring/uninteresting" even after the
+              chip/button tokens were fixed -- the room code deserved the
+              same full-bleed-photo treatment as the rest of the app, not a
+              plain color fill). Deterministic per room code, not random, so
+              reloading the same room doesn't flicker to a different photo.
+            */}
+            <div className="relative h-40 overflow-hidden bg-[var(--fs-ink)]">
+              <img
+                src={`/images/cuisines/${ROOM_HERO_CUISINES[hashRoomCode(activeRoom.code)]}.jpg`}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover animate-ken-burns-a"
+              />
+              <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-[var(--fs-on-ink)]">
+                <p className="font-body text-xs font-bold uppercase tracking-widest text-[var(--fs-on-dark-3)]">
+                  Your Private Room Code
+                </p>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <span className="font-display text-4xl font-extrabold tracking-[.15em]">{activeRoom.code}</span>
+                  <button
+                    type="button"
+                    onClick={copyRoomCode}
+                    aria-label="Copy code"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--fs-glass)] backdrop-blur-[6px] hover:bg-[var(--fs-glass-line)]"
+                  >
+                    <Copy className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
-              <div className="mt-4 px-6">
-                <Button variant="outline" size="sm" onClick={copyShareLink} className="rounded-full">
-                  <Link2 className="h-4 w-4" />
-                  Copy shareable join link
-                </Button>
-              </div>
+            </div>
+            <div className="border-b border-[var(--fs-line)] py-4 text-center">
+              <Button variant="outline" size="sm" onClick={copyShareLink} className="rounded-full">
+                <Link2 className="h-4 w-4" />
+                Copy shareable join link
+              </Button>
               <p className="font-body text-xs text-muted-foreground mt-3 px-6">
                 Share the code or link with up to 3 friends so they can join from their phone or browser --
                 no account needed on their end.
@@ -357,10 +376,11 @@ export function RoomsDashboard() {
               </h3>
 
               <div className="space-y-3 mt-4">
-                {participants.map((participant) => (
+                {participants.map((participant, i) => (
                   <div
                     key={participant.id}
-                    className="flex items-center justify-between p-3.5 bg-background/50 rounded-2xl border border-black/5"
+                    className="flex items-center justify-between p-3.5 bg-background/50 rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] animate-page-load"
+                    style={{ "--stagger-delay": `${Math.min(i, 6) * 0.06}s` } as React.CSSProperties}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-primary/20 text-primary font-headline flex items-center justify-center font-bold">
@@ -388,7 +408,7 @@ export function RoomsDashboard() {
               </div>
 
               {participants.length === 1 && (
-                <div className="mt-6 flex flex-col items-center justify-center py-6 border border-dashed rounded-2xl gap-3">
+                <div className="mt-6 flex flex-col items-center justify-center py-6 border border-dashed border-[var(--fs-line-strong)] rounded-[var(--fs-r-lg)] gap-3">
                   <Loader2 className="h-6 w-6 text-primary animate-spin" />
                   <p className="font-body text-xs text-muted-foreground text-center px-4">
                     Waiting for others to join... Share the room code{" "}
@@ -399,11 +419,11 @@ export function RoomsDashboard() {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 border-t border-black/5 pt-6 pb-8 px-6">
+            <div className="flex flex-col sm:flex-row gap-4 border-t border-[var(--fs-line)] pt-6 pb-8 px-6">
               <Button
                 onClick={handleLeaveRoom}
                 variant="outline"
-                className="w-full sm:w-auto h-12 rounded-2xl flex gap-2 shrink-0"
+                className="w-full sm:w-auto h-12 shrink-0"
               >
                 <LogOut className="h-4 w-4" />
                 Leave Room
@@ -418,4 +438,15 @@ export function RoomsDashboard() {
       )}
     </div>
   );
+}
+
+const ROOM_HERO_CUISINES = [
+  "italian", "mexican", "japanese", "indian", "thai", "greek", "french", "vietnamese", "korean",
+] as const;
+
+/** Deterministic, not random -- the same room code always gets the same hero photo. */
+function hashRoomCode(code: string): number {
+  let hash = 0;
+  for (let i = 0; i < code.length; i++) hash = (hash * 31 + code.charCodeAt(i)) >>> 0;
+  return hash % ROOM_HERO_CUISINES.length;
 }

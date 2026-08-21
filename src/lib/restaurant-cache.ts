@@ -104,6 +104,21 @@ export async function readRestaurantCache(
     menuPreview: menuByRestaurant.get(row.id as string) ?? [],
   }));
 
+  // Self-healing for rows cached before 0021_restaurant_photo.sql shipped:
+  // those rows are otherwise indistinguishable from a real "Google has
+  // neither a phone nor a photo for this place" result (both columns just
+  // read null either way), and without this check they'd serve stale --
+  // every restaurant showing the same handful of generic cuisine stock
+  // photos, forever, until the 14-day TTL happened to expire (user feedback:
+  // "still showing old images and repeat images"). If under half of a
+  // legitimate-sized result set has neither field, treat the whole batch as
+  // pre-photo-feature and fall through to a live Google Places call instead
+  // -- which re-syncs the cache with real photo_ref/phone going forward, so
+  // this self-heals after one real search per area rather than needing a
+  // manual cache wipe.
+  const enriched = withMenus.filter((r) => r.photoRef !== null || r.phone !== null).length;
+  if (withMenus.length >= 3 && enriched < withMenus.length / 2) return [];
+
   return withMenus
     .sort((a, b) => {
       if (a.menuPreview.length > 0 !== b.menuPreview.length > 0) {

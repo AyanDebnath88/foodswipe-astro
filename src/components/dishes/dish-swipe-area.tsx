@@ -52,11 +52,10 @@
 // proper fix is to persist the menu per (session, restaurant) when a migration
 // is possible again.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DishCard, type Dish } from "./dish-card";
+import type { Dish } from "./dish-card";
 import { Button, CtaArrow } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
-  X,
   Heart,
   PartyPopper,
   Utensils,
@@ -137,7 +136,6 @@ export function DishSwipeArea({
   // The room was deleted out from under us (Realtime DELETE).
   const [roomClosed, setRoomClosed] = useState(false);
 
-  const [mySwipedNames, setMySwipedNames] = useState<Set<string>>(new Set());
   const [myLikedNames, setMyLikedNames] = useState<Set<string>>(new Set());
   const [dishVotes, setDishVotes] = useState<Map<string, Map<string, "left" | "right">>>(new Map());
   const [agreed, setAgreed] = useState<DishMatch[]>([]);
@@ -178,13 +176,15 @@ export function DishSwipeArea({
     return [...byName.values()];
   }, [menuDishes, dishVotes, agreedNamesHere]);
 
-  const deck = useMemo(
-    () => allDishes.filter((d) => !mySwipedNames.has(d.name) && !agreedNamesHere.has(d.name)),
-    [allDishes, mySwipedNames, agreedNamesHere]
+  // The tappable menu: every known dish minus ones already agreed (those
+  // move to the agreed panel instead). Unlike the old swipe deck, a dish
+  // NEVER disappears just because this user tapped it -- tapping toggles
+  // like/unlike, and the whole menu stays visible and re-tappable until
+  // the group is done (see handleSwipe below).
+  const visibleDishes = useMemo(
+    () => allDishes.filter((d) => !agreedNamesHere.has(d.name)),
+    [allDishes, agreedNamesHere]
   );
-
-  const currentDish = deck[0] ?? null;
-  const deckExhausted = deck.length === 0;
 
   // Announce newly agreed dishes once each. Without this ref every Realtime
   // refetch would re-toast the whole list.
@@ -353,7 +353,6 @@ export function DishSwipeArea({
 
       setParticipants(roomParticipants);
       setDishVotes(map);
-      setMySwipedNames(new Set(mine.map((r) => r.dishName)));
       setMyLikedNames(new Set(mine.filter((r) => r.direction === "right").map((r) => r.dishName)));
       setAgreed(matches);
       setLoading(false);
@@ -393,6 +392,11 @@ export function DishSwipeArea({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id]);
 
+  // "left" now only ever means "retract a like" (tapping an already-tapped
+  // dish) -- there's no separate pass gesture in the tap menu, so this
+  // never fires for a dish the user hasn't tapped in the first place.
+  // submitDishSwipe() is an upsert, so re-submitting "left" after "right"
+  // safely flips the same row back rather than creating a second one.
   const handleSwipe = async (direction: "left" | "right", dish: Dish) => {
     if (!room || !userId) return;
     try {
@@ -404,9 +408,12 @@ export function DishSwipeArea({
         next.set(dish.name, votes);
         return next;
       });
-      if (direction === "right") {
-        setMyLikedNames((prev) => new Set(prev).add(dish.name));
-      }
+      setMyLikedNames((prev) => {
+        const next = new Set(prev);
+        if (direction === "right") next.add(dish.name);
+        else next.delete(dish.name);
+        return next;
+      });
     } catch (err) {
       console.error("Dish swipe error:", err);
       toast({
@@ -418,18 +425,11 @@ export function DishSwipeArea({
     }
 
     // A vote that completes unanimity arrives back as a dish_matches INSERT
-    // over Realtime (onDishMatch above) -- never decided here. The delay just
-    // lets the card's exit animation finish before the deck recomputes.
-    setTimeout(() => {
-      setMySwipedNames((prev) => new Set(prev).add(dish.name));
-    }, 500);
+    // over Realtime (onDishMatch above) -- never decided here.
   };
 
-  const votesOnCurrent = currentDish ? dishVotes.get(currentDish.name)?.size ?? 0 : 0;
   const agreedHere = agreed.filter((m) => m.restaurantName === restaurantName);
   const agreedElsewhere = agreed.filter((m) => m.restaurantName !== restaurantName);
-  const pendingLikes = [...myLikedNames].filter((n) => !agreedNamesHere.has(n));
-
   const backToRestaurants = `/match/${cuisineId}?room=${roomCode}`;
 
   if (loading) {
@@ -683,25 +683,53 @@ export function DishSwipeArea({
   }
 
   // ---------------------------------------------------------------------------
-  // Deck exhausted. Not a dead end in either case: the agreed panel always
-  // carries "Done", plus explicit ways back out.
+  // Tap menu (replaces the old one-at-a-time swipe deck -- user feedback: no
+  // swiping on this page, show the whole menu and let people tap what they
+  // want). Every known dish renders at once, staggered in on mount rather
+  // than gated behind a gesture; tapping toggles a like on/off via the same
+  // handleSwipe("left"|"right") the realtime sync already used. A dish only
+  // leaves this grid once it's actually agreed (moves to the panel below) --
+  // never because one person decided on it, and never a dead end: the panel
+  // always carries "Done", plus explicit ways back out.
   // ---------------------------------------------------------------------------
-  if (deckExhausted) {
-    return (
-      <div className="w-full max-w-sm flex flex-col items-center">
-        <div className="w-full rounded-2xl border bg-card/75 backdrop-blur-md shadow-2xl p-8 text-center">
+  return (
+    <div className="w-full max-w-sm flex flex-col items-center lg:max-w-2xl">
+      <p className="font-body text-sm text-muted-foreground text-center mb-4">
+        Tap the dishes your table wants. A dish locks in once everyone here has tapped it.
+      </p>
+
+      {/*
+        Honest about where the list came from. "catalog" means the menu
+        endpoint was unreachable and these are the cuisine's generic dishes,
+        not this restaurant's own -- worth saying, rather than quietly
+        presenting stand-ins as the real menu.
+      */}
+      {menuSource === "catalog" && (
+        <p className="mb-4 font-body text-[11px] text-muted-foreground text-center">
+          Couldn't reach the menu service, so these are generic {cuisineLabel} dishes rather than{" "}
+          {restaurantName}'s own.{" "}
+          <button
+            type="button"
+            className="underline hover:text-foreground"
+            onClick={() => void loadMenu(cuisineLabel, catalogDishes)}
+          >
+            Retry
+          </button>
+        </p>
+      )}
+
+      {visibleDishes.length === 0 ? (
+        <div className="w-full rounded-[var(--fs-r-xl)] border bg-card/75 backdrop-blur-md shadow-[var(--fs-e-2)] p-8 text-center">
           <div className="mx-auto bg-primary/20 p-3 rounded-full mb-3 w-fit">
             <Utensils className="h-8 w-8 text-primary" />
           </div>
           <h3 className="text-xl font-headline">
-            {agreed.length > 0 ? "You've swiped the whole menu" : "That's the whole menu"}
+            {agreed.length > 0 ? "Nothing left to tap here" : "That's the whole menu"}
           </h3>
           <p className="text-muted-foreground mt-2 font-body text-sm">
-            {pendingLikes.length > 0
-              ? `You said yes to ${pendingLikes.join(", ")} — waiting on the rest of the group. This list updates the moment everyone agrees.`
-              : agreed.length > 0
-                ? "Nothing left to vote on here. Wrap up your order, or try another restaurant."
-                : "Nobody's reached unanimity here yet. Wait for the others to finish swiping, or try a different restaurant."}
+            {agreed.length > 0
+              ? "Wrap up your order, or try another restaurant."
+              : "Nobody's reached unanimity here yet. Wait for the others, or try a different restaurant."}
           </p>
           <div className="mt-6 flex flex-col gap-2">
             <Button asChild variant="outline" className="w-full rounded-2xl h-11">
@@ -715,79 +743,57 @@ export function DishSwipeArea({
             </Button>
           </div>
         </div>
-        {agreedPanel}
-      </div>
-    );
-  }
+      ) : (
+        <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {visibleDishes.map((dish, i) => {
+            const liked = myLikedNames.has(dish.name);
+            const votes = dishVotes.get(dish.name)?.size ?? 0;
+            const image = getDishImage(dish.name, cuisineId);
+            return (
+              <button
+                key={dish.id}
+                type="button"
+                onClick={() => handleSwipe(liked ? "left" : "right", dish)}
+                aria-pressed={liked}
+                className={`group relative aspect-square overflow-hidden rounded-[var(--fs-r-lg)] bg-[var(--fs-ink)] text-left shadow-[var(--fs-e-0)] transition-all duration-200 animate-page-load ${
+                  liked ? "ring-2 ring-[var(--fs-terracotta)] ring-offset-2 ring-offset-background" : "hover:shadow-[var(--fs-e-1)]"
+                }`}
+                style={{ "--stagger-delay": `${Math.min(i, 12) * 0.07}s` } as React.CSSProperties}
+              >
+                {image ? (
+                  <img
+                    src={image}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Utensils className="h-6 w-6 text-[var(--fs-on-ink)]/60" aria-hidden="true" />
+                  </div>
+                )}
+                <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
 
-  // ---------------------------------------------------------------------------
-  // Normal swiping
-  // ---------------------------------------------------------------------------
-  return (
-    <div className="w-full max-w-sm flex flex-col items-center">
-      <div className="relative w-full h-[20rem] flex items-center justify-center">
-        {[...deck]
-          .map((dish, index) => (
-            <DishCard
-              key={dish.id}
-              dish={dish}
-              cuisineId={cuisineId}
-              onSwipe={(dir) => handleSwipe(dir, dish)}
-              isActive={index === 0}
-              zIndex={deck.length - index}
-            />
-          ))
-          .reverse()}
-      </div>
+                {liked && (
+                  <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[var(--fs-terracotta)] text-[var(--fs-on-ink)]">
+                    <Heart className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
+                  </span>
+                )}
+                {votes > 0 && participants.length > 0 && (
+                  <span className="absolute left-1.5 top-1.5 rounded-[var(--fs-r-pill)] bg-[var(--fs-glass)] px-1.5 py-0.5 text-[10px] font-body text-[var(--fs-on-ink)] backdrop-blur-[6px]">
+                    {votes}/{participants.length}
+                  </span>
+                )}
 
-      {participants.length > 0 && (
-        <p className="text-xs text-muted-foreground mt-4 font-body">
-          {votesOnCurrent} of {participants.length} diners have voted on this dish
-        </p>
+                <span className="absolute inset-x-0 bottom-0 p-2 font-headline text-xs font-semibold leading-tight text-[var(--fs-on-ink)] line-clamp-2">
+                  {dish.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       )}
-
-      {/*
-        Honest about where the list came from. "catalog" means the menu
-        endpoint was unreachable and these are the cuisine's generic dishes,
-        not this restaurant's own -- worth saying, rather than quietly
-        presenting stand-ins as the real menu.
-      */}
-      {menuSource === "catalog" && (
-        <p className="mt-2 font-body text-[11px] text-muted-foreground text-center">
-          Couldn't reach the menu service, so these are generic {cuisineLabel} dishes rather than{" "}
-          {restaurantName}'s own.{" "}
-          <button
-            type="button"
-            className="underline hover:text-foreground"
-            onClick={() => void loadMenu(cuisineLabel, catalogDishes)}
-          >
-            Retry
-          </button>
-        </p>
-      )}
-
-      <div className="flex items-center justify-center gap-4 mt-6">
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Pass on this dish"
-          className="rounded-full shadow-[var(--fs-e-1)] border-2 border-[var(--fs-line-strong)] text-[var(--fs-text-3)] hover:bg-[var(--fs-cream-tint)]"
-          style={{ width: "var(--fs-swipe-pass)", height: "var(--fs-swipe-pass)" }}
-          onClick={() => document.getElementById("dish-swipe-left-btn")?.click()}
-        >
-          <X className="h-7 w-7" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label="Like this dish"
-          className="rounded-full shadow-[var(--fs-e-primary)] border-2 border-[var(--fs-terracotta)] text-[var(--fs-terracotta)] hover:bg-[var(--fs-terracotta)]/10"
-          style={{ width: "var(--fs-swipe-like)", height: "var(--fs-swipe-like)" }}
-          onClick={() => document.getElementById("dish-swipe-right-btn")?.click()}
-        >
-          <Heart className="h-8 w-8" />
-        </Button>
-      </div>
 
       {agreedPanel}
     </div>
