@@ -298,6 +298,28 @@
 }
 
 /*
+ * Nav fly-in: the floating mobile pill/strip appears on page load, then
+ * auto-collapses to a small corner button after 5s of no interaction (see
+ * header-nav.tsx) -- fixes "too much chrome on first load" feedback without
+ * losing the destinations entirely. Each state is a real mount/unmount (not
+ * a width tween), so this keyframe just needs to fire once per entrance.
+ */
+@keyframes nav-fly-in-up {
+  from { opacity: 0; transform: translateY(28px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes nav-fly-in-side {
+  from { opacity: 0; transform: translateX(24px) scale(0.9); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-nav-fly-in-up {
+  animation: nav-fly-in-up var(--fs-dur-enter) var(--fs-ease-out) both;
+}
+.animate-nav-fly-in-side {
+  animation: nav-fly-in-side var(--fs-dur-enter) var(--fs-ease-out) both;
+}
+
+/*
  * prefers-reduced-motion override for every animation this app ships. One
  * rule dropping every animation/transition to near-instant (0.01ms, not 0s
  * -- some browsers/testing tools treat a 0s animation as "never ran" and

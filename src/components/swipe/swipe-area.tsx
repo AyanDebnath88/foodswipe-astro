@@ -10,6 +10,7 @@
 // requires ?room=CODE.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CuisineCard } from "./cuisine-card";
+import { CuisineDishGuide } from "./cuisine-dish-guide";
 import { Button, CtaArrow } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { X, Heart, Loader2, Users, DoorClosed } from "lucide-react";
@@ -339,6 +340,20 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
             <Heart className="h-8 w-8" />
           </Button>
         </div>
+      )}
+
+      {/*
+        Dish glossary for the currently active card -- user feedback: nobody
+        swiping past "Vietnamese" knows what pho or banh mi actually are.
+        Keyed off currentCuisine so it updates as the deck advances; scrolled
+        to, not part of the card itself.
+      */}
+      {currentCuisine && (
+        <CuisineDishGuide
+          cuisineId={currentCuisine.id}
+          cuisineName={currentCuisine.name}
+          dishes={currentCuisine.dishes}
+        />
       )}
     </div>
   );

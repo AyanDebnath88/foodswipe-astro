@@ -24,15 +24,15 @@ const pathname = Astro.url.pathname;
 ---
 
 <!--
-  Mobile: fixed floating ink pill, inset 20px, 26px above the safe-area
-  bottom. Desktop (lg: 1024px+): flattens to a full-width 68px ink bar at the
-  top instead -- the pill "returns" below 1024px per the spec.
+  Desktop (lg: 1024px+) only: a full-width 68px sticky ink bar at the top.
+  Mobile has no shape here at all -- HeaderNav (the island below) renders its
+  OWN fixed-position floating pill + account strip, independent of this
+  container's DOM position, so it can also own their expand/collapse timers
+  (see header-nav.tsx: both auto-collapse to a small corner button 5s after
+  appearing, expandable again on tap -- the fix for "too much chrome on
+  first load" feedback).
 -->
-<nav
-  aria-label="Primary"
-  class="fixed inset-x-5 z-40 flex h-[var(--fs-nav-pill-h)] items-center justify-around rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-1.5 shadow-[var(--fs-e-float)] lg:sticky lg:inset-x-0 lg:top-0 lg:h-[var(--fs-appbar-h)] lg:w-full lg:justify-between lg:rounded-none lg:px-10 lg:shadow-none"
-  style={{ bottom: "var(--fs-nav-bottom)" }}
->
+<nav aria-label="Primary" class="lg:sticky lg:top-0 lg:z-40 lg:flex lg:h-[var(--fs-appbar-h)] lg:w-full lg:items-center lg:justify-between lg:bg-[var(--fs-ink)] lg:px-10">
   <a href="/" class="hidden shrink-0 items-center gap-2 lg:flex" aria-label="Food Swipe home">
     <div class="rounded-[var(--fs-r-sm)] bg-[var(--fs-terracotta)] p-1.5 text-[var(--fs-on-ink)]">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
