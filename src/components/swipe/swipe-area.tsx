@@ -348,12 +348,15 @@ export function SwipeArea({ roomCode }: SwipeAreaProps) {
         Dish glossary for the currently active card -- user feedback: nobody
         swiping past "Vietnamese" knows what pho or banh mi actually are.
         Keyed off currentCuisine so it updates as the deck advances. Desktop:
-        a right-side rail next to the sticky card (user feedback: stacking it
-        below made the desktop page feel like an afterthought scroll). Mobile:
-        unchanged vertical flow below the deck.
+        a right-side rail next to the sticky card. Deliberately narrower than
+        the card and single-column here (second pass of user feedback: an
+        equal-width two-column rail of big photos rivaled the card for
+        attention and caused decision fatigue -- the card is the thing being
+        decided on, the glossary is reference material, and the layout now
+        says so). Mobile: unchanged vertical flow below the deck.
       */}
       {currentCuisine && (
-        <div className="mt-10 w-full lg:mt-0 lg:max-w-2xl lg:flex-1">
+        <div className="mt-10 w-full lg:mt-0 lg:max-w-[360px] lg:shrink">
           <CuisineDishGuide
             cuisineId={currentCuisine.id}
             cuisineName={currentCuisine.name}

@@ -240,7 +240,7 @@ export function RoomsDashboard() {
   return (
     <div className="container mx-auto px-4 max-w-4xl pb-16">
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-headline font-semibold text-foreground tracking-tight">
+        <h1 className="font-display text-4xl font-extrabold uppercase tracking-[-.02em] text-foreground md:text-5xl">
           Social Swiping Rooms
         </h1>
         <p className="text-muted-foreground mt-3 font-body text-lg max-w-2xl mx-auto">
@@ -252,8 +252,8 @@ export function RoomsDashboard() {
       {!activeRoom ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
           {/* HOST PANEL */}
-          <div className="flex flex-col border border-primary/20 bg-card/60 backdrop-blur-md hover:shadow-xl transition-all duration-300 rounded-3xl p-6">
-            <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary mb-2">
+          <div className="flex flex-col border border-[var(--fs-line)] bg-card shadow-[var(--fs-e-1)] transition-shadow duration-300 hover:shadow-[var(--fs-e-2)] rounded-[var(--fs-r-xl)] p-6">
+            <div className="w-12 h-12 rounded-[var(--fs-r-md)] bg-[var(--fs-terracotta)]/15 flex items-center justify-center text-[var(--fs-terracotta)] mb-2">
               <Plus className="h-6 w-6" />
             </div>
             <h2 className="text-2xl font-headline">Host a Group Swipe</h2>
@@ -262,9 +262,9 @@ export function RoomsDashboard() {
               friends to swipe together.
             </p>
             <div className="flex-1 flex flex-col justify-end mt-6">
-              <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10 mb-6">
+              <div className="bg-[var(--fs-cream-tint)] rounded-[var(--fs-r-md)] p-4 border border-[var(--fs-line)] mb-6">
                 <h4 className="font-body font-semibold text-sm text-foreground flex items-center gap-1.5 mb-1.5">
-                  <Users className="h-4 w-4 text-primary" /> Multi-user Matchmaking
+                  <Users className="h-4 w-4 text-[var(--fs-terracotta)]" /> Multi-user Matchmaking
                 </h4>
                 <p className="font-body text-xs text-muted-foreground leading-relaxed">
                   The system tracks swipes of 2-4 users simultaneously and fires an immediate alert when all
@@ -279,8 +279,8 @@ export function RoomsDashboard() {
           </div>
 
           {/* JOIN PANEL */}
-          <div className="flex flex-col border border-accent/40 bg-card/60 backdrop-blur-md hover:shadow-xl transition-all duration-300 rounded-3xl p-6">
-            <div className="w-12 h-12 rounded-2xl bg-accent/20 flex items-center justify-center text-foreground mb-2">
+          <div className="flex flex-col border border-[var(--fs-line)] bg-card shadow-[var(--fs-e-1)] transition-shadow duration-300 hover:shadow-[var(--fs-e-2)] rounded-[var(--fs-r-xl)] p-6">
+            <div className="w-12 h-12 rounded-[var(--fs-r-md)] bg-[var(--fs-gold)]/25 flex items-center justify-center text-[var(--fs-text)] mb-2">
               <UserPlus className="h-6 w-6" />
             </div>
             <h2 className="text-2xl font-headline">Join a Swipe Room</h2>
@@ -303,15 +303,15 @@ export function RoomsDashboard() {
                   placeholder="ABCD"
                   value={roomCodeInput}
                   onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                  className="h-14 text-center text-3xl font-headline uppercase tracking-[0.5em] rounded-2xl"
+                  className="h-14 text-center text-3xl font-headline uppercase tracking-[0.5em] rounded-[var(--fs-r-md)]"
                   disabled={isLoading}
                 />
               </div>
               <Button
                 type="submit"
-                variant="secondary"
+                variant="outline"
                 disabled={isLoading || roomCodeInput.trim().length !== 4}
-                className="w-full h-12 text-md rounded-2xl"
+                className="w-full h-12"
               >
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
                 Join Session Room
