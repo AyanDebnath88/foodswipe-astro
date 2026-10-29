@@ -1,14 +1,12 @@
 ---
-// Design system v3 landing page: a 3D scroll story (ScrollWorld) behind five
-// chapters that walk the core loop -- start a table, swipe, match, order.
-// Deviations kept from earlier passes:
-//   - CTAs point to /signup (signed out) or /rooms (signed in).
-//   - prerender = false: nav and CTAs branch on sign-in state server-side.
-// The v2 crossfading hero photography is replaced by the world's floating
-// photo cards; the header is fixed transparent chrome over the canvas.
+// Design system v3 landing page. One persistent 3D deck (ScrollWorld)
+// transforms behind five chapters that walk the core loop; the quick start
+// (name -> table, no account) sits in the hero and again at the end, so the
+// first real action needs one field. prerender = false: nav and the quick
+// start branch on sign-in state server-side.
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ScrollWorld from "@/components/home/ScrollWorld.astro";
-import { CtaArrow } from "@/components/ui/button";
+import { QuickStart } from "@/components/home/quick-start";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const prerender = false;
@@ -21,29 +19,16 @@ const isSignedIn = Boolean(user);
 const displayName =
   (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? "there";
 
-const ctaHref = isSignedIn ? "/rooms" : "/signup";
 const year = new Date().getFullYear();
 
+// Chapter 0 is the hero; 1-4 walk the loop. `label` feeds the chapter index.
 const steps = [
-  {
-    tag: "Step 1 of 4",
-    title: "Start a table in one tap.",
-    muted: "",
-    body: "You get a four-letter code and a link. Friends join with it and you all swipe the same deck.",
-  },
-  {
-    tag: "Step 2 of 4",
-    title: "Swipe together.",
-    muted: "Feel the table.",
-    body: "Everyone swipes the same cuisines. You see who has voted on a card, never what they picked, so nobody bandwagons.",
-  },
-  {
-    tag: "Step 3 of 4",
-    title: "Everyone said yes.",
-    muted: "That's dinner.",
-    body: "The moment the whole table agrees, Food Swipe shows real places nearby, best rated first.",
-  },
+  { label: "Your table", title: "Start a table. Friends join with a four-letter code.", body: "No app to download and no account to make. Share the code or the link and everyone is in." },
+  { label: "Swipe", title: "Everyone swipes the same deck.", body: "You see who has voted on a card, never what they picked, so nobody bandwagons." },
+  { label: "Match", title: "The moment all of you say yes, that's dinner.", body: "Food Swipe rolls the match straight into real places nearby, best rated first." },
+  { label: "Order", title: "Pick dishes together, then order for real.", body: "Dishes lock in when the whole table agrees. Call the restaurant or open it on Zomato or Swiggy." },
 ];
+const words = (s: string) => s.split(" ");
 ---
 
 <BaseLayout title="Food Swipe" description="Stop arguing. Start eating. Swipe together, decide together.">
@@ -78,89 +63,65 @@ const steps = [
             </a>
           </>
         ) : (
-          <>
-            <a
-              href="/login"
-              class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--fs-r-pill)] border-[1.5px] border-[var(--fs-glass-line)] bg-[var(--fs-ink)]/60 px-4 font-body text-sm font-medium text-[var(--fs-on-ink)] backdrop-blur-[6px] transition-colors hover:bg-white/5"
-            >
-              Sign In
-            </a>
-            <a
-              href="/signup"
-              class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--fs-r-pill)] bg-[var(--fs-terracotta-text)] px-4 font-body text-sm font-medium text-[var(--fs-on-ink)] transition-colors hover:bg-[var(--fs-terracotta-hover)]"
-            >
-              Sign Up Free
-            </a>
-          </>
+          <a
+            href="/login"
+            class="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--fs-r-pill)] border-[1.5px] border-[var(--fs-glass-line)] bg-[var(--fs-ink)]/60 px-4 font-body text-sm font-medium text-[var(--fs-on-ink)] backdrop-blur-[6px] transition-colors hover:bg-white/5"
+          >
+            Log in
+          </a>
         )}
       </nav>
     </div>
   </header>
 
+  <!-- Fixed chapter index (award-site pattern): number, label, progress. Driven by ScrollWorld. -->
+  <div class="pointer-events-none fixed bottom-5 left-4 z-20 hidden items-center gap-3 font-body text-xs text-[var(--fs-text-4)] sm:left-6 lg:flex lg:left-8" aria-hidden="true">
+    <span class="tabular-nums"><span id="hud-num" class="font-semibold text-[var(--fs-on-ink)]">01</span> / 05</span>
+    <span class="relative h-px w-24 overflow-hidden bg-[var(--fs-line-strong)]">
+      <span id="hud-bar" class="absolute inset-0 origin-left scale-x-0 bg-[var(--fs-terracotta)]"></span>
+    </span>
+    <span id="hud-label">Start</span>
+  </div>
+
   <main id="world" class="relative z-10">
-    <section class="chapter is-active flex min-h-screen items-end px-4 py-24 sm:px-6 lg:items-center lg:px-8">
-      <div class="copy grid max-w-[31rem] gap-5 lg:ml-[6vw]">
-        <h1 class="font-display text-[clamp(3rem,7.4vw,5.6rem)] font-bold leading-[0.98] tracking-[-.035em] text-[var(--fs-on-ink)]">
-          Stop arguing. <span class="text-[var(--fs-text-5)]">Start eating.</span>
+    <section data-label="Start" class="chapter is-active flex min-h-screen items-end px-4 pb-16 pt-24 sm:px-6 lg:items-center lg:px-8 lg:pb-24">
+      <div class="copy grid w-full max-w-[34rem] gap-6 lg:ml-[5vw]">
+        <h1 class="font-display text-[clamp(3rem,7vw,5.4rem)] font-bold leading-[0.96] tracking-[-.04em] text-[var(--fs-on-ink)]">
+          Stop arguing.<br /><span class="text-[var(--fs-terracotta)]">Start eating.</span>
         </h1>
-        <p class="max-w-[29rem] font-body text-lg text-[var(--fs-text-3)]">
-          Your whole table swipes on the same cuisines, and Food Swipe finds the one thing everyone actually wants.
+        <p class="max-w-[28rem] font-body text-lg text-[var(--fs-text-3)]">
+          Your table swipes the same cuisines. When everyone says yes, that's dinner.
         </p>
         {isSignedIn && (
           <p class="font-body text-sm text-[var(--fs-on-dark-4)]">
             Signed in as <span class="font-semibold text-[var(--fs-on-ink)]">{displayName}</span>
           </p>
         )}
-        <div class="flex flex-wrap items-center gap-4">
-          <a
-            href={ctaHref}
-            class="group inline-flex h-[var(--fs-cta-h)] items-center justify-between gap-3 rounded-[var(--fs-r-pill)] bg-[var(--fs-on-ink)] pl-[22px] pr-1.5 font-body text-base font-semibold text-[var(--fs-ink)] shadow-[var(--fs-e-float)] transition-shadow hover:shadow-[var(--fs-e-primary)]"
-          >
-            <span>{isSignedIn ? "Start a table" : "Get started"}</span>
-            <CtaArrow />
-          </a>
-          <span class="font-body text-sm text-[var(--fs-text-5)]">or scroll</span>
-        </div>
+        <QuickStart client:load signedIn={isSignedIn} />
       </div>
     </section>
 
-    {steps.map((s, i) => (
-      <section class="chapter flex min-h-[115vh] items-end px-4 py-24 sm:px-6 lg:items-center lg:px-8">
-        <div class={`copy grid max-w-[31rem] gap-4 ${i % 2 === 0 ? "lg:ml-auto lg:mr-[6vw]" : "lg:ml-[6vw]"}`}>
-          <span class="inline-flex items-center gap-2 font-body text-[13px] font-semibold text-[var(--fs-text-3)]">
-            <i class="h-[7px] w-[7px] rounded-full bg-[var(--fs-terracotta)]"></i>{s.tag}
-          </span>
-          <h2 class="font-display text-[clamp(2.2rem,4.6vw,3.6rem)] font-bold leading-[0.98] tracking-[-.035em] text-[var(--fs-on-ink)]">
-            {s.title} {s.muted && <span class="text-[var(--fs-text-5)]">{s.muted}</span>}
+    {steps.map((s) => (
+      <section data-label={s.label} class="chapter flex min-h-[120vh] items-end px-4 pb-16 pt-24 sm:px-6 lg:items-center lg:px-8 lg:pb-24">
+        <div class="copy grid w-full max-w-[32rem] gap-4 lg:ml-[5vw]">
+          <span class="font-body text-[13px] font-semibold text-[var(--fs-text-4)]">{s.label}</span>
+          <h2 class="fill-words font-display text-[clamp(2.1rem,4.4vw,3.5rem)] font-bold leading-[1] tracking-[-.035em] text-[var(--fs-on-ink)]">
+            {words(s.title).map((w) => <><span class="w">{w}</span> </>)}
           </h2>
-          <p class="max-w-[29rem] font-body text-lg text-[var(--fs-text-3)]">{s.body}</p>
+          <p class="max-w-[28rem] font-body text-lg text-[var(--fs-text-3)]">{s.body}</p>
         </div>
       </section>
     ))}
-
-    <section class="chapter flex min-h-[115vh] items-end px-4 py-24 sm:px-6 lg:items-center lg:px-8">
-      <div class="copy grid max-w-[31rem] gap-4 lg:ml-[6vw]">
-        <span class="inline-flex items-center gap-2 font-body text-[13px] font-semibold text-[var(--fs-text-3)]">
-          <i class="h-[7px] w-[7px] rounded-full bg-[var(--fs-terracotta)]"></i>Step 4 of 4
-        </span>
-        <h2 class="font-display text-[clamp(2.2rem,4.6vw,3.6rem)] font-bold leading-[0.98] tracking-[-.035em] text-[var(--fs-on-ink)]">
-          Pick dishes. Order for real.
-        </h2>
-        <p class="max-w-[29rem] font-body text-lg text-[var(--fs-text-3)]">
-          Tap what the table wants and watch dishes lock in live, then call the restaurant or open it on Zomato or Swiggy.
-        </p>
-        <div>
-          <a
-            href={ctaHref}
-            class="group inline-flex h-[var(--fs-cta-h)] items-center justify-between gap-3 rounded-[var(--fs-r-pill)] bg-[var(--fs-on-ink)] pl-[22px] pr-1.5 font-body text-base font-semibold text-[var(--fs-ink)] shadow-[var(--fs-e-float)] transition-shadow hover:shadow-[var(--fs-e-primary)]"
-          >
-            <span>{isSignedIn ? "Start a table" : "Start swiping free"}</span>
-            <CtaArrow />
-          </a>
-        </div>
-      </div>
-    </section>
   </main>
+
+  <section class="relative z-10 flex min-h-[80vh] items-center px-4 py-24 sm:px-6 lg:px-8">
+    <div class="grid w-full max-w-[34rem] gap-6 lg:ml-[5vw]">
+      <h2 class="font-display text-[clamp(2.4rem,5vw,4rem)] font-bold leading-[0.98] tracking-[-.04em] text-[var(--fs-on-ink)]">
+        Your table is one name away.
+      </h2>
+      <QuickStart client:visible signedIn={isSignedIn} />
+    </div>
+  </section>
 
   <footer class="relative z-10 border-t border-[var(--fs-line)] bg-[var(--fs-cream)] py-6 text-center font-body text-sm text-[var(--fs-text-5)]">
     <p>&copy; {year} Food Swipe. All rights reserved.</p>
@@ -168,20 +129,25 @@ const steps = [
 </BaseLayout>
 
 <style>
-  /* Copy dims between chapters and settles on the active one (class set by ScrollWorld's script). */
+  /* Copy dims between chapters and settles on the active one (class set by ScrollWorld). */
   .copy {
     opacity: 0.35;
     transform: translateY(10px);
     transition: opacity 0.5s var(--fs-ease-out), transform 0.5s var(--fs-ease-out);
   }
-  .copy > * {
+  .copy > :not(div) {
     text-shadow: 0 2px 24px rgba(17, 17, 17, 0.9);
-  }
-  .copy a {
-    text-shadow: none;
   }
   .chapter.is-active .copy {
     opacity: 1;
     transform: none;
+  }
+  /* Word-by-word headline fill; .lit toggled by ScrollWorld as the chapter scrolls in. */
+  .fill-words .w {
+    color: var(--fs-text-6);
+    transition: color 0.35s var(--fs-ease-out);
+  }
+  .fill-words .w.lit {
+    color: inherit;
   }
 </style>
