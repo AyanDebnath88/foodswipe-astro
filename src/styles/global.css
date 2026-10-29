@@ -17,46 +17,54 @@
  */
 
 :root {
+  /*
+   * v3 "Charcoal & Tomato" (Resy-derived; concept artifact LhUkXV51pHLRktD8VjcfMd).
+   * Values swapped in place, names kept so every existing var(--fs-*) follows:
+   * "cream" is now the charcoal canvas, "ink" the raised dark surface,
+   * "terracotta" is tomato. Single dark theme.
+   */
+  color-scheme: dark;
+
   /* ---- surfaces ---- */
-  --fs-cream:        #F7F1E8;  /* app canvas */
-  --fs-cream-tint:   #F1E9DD;  /* secondary button, nested tint */
-  --fs-cream-sunk:   #EFE3D5;  /* disabled fill */
-  --fs-card:         #FFFFFF;
-  --fs-ink:          #171310;  /* nav bar, CTA pill, celebration ground */
+  --fs-cream:        #111111;  /* app canvas (charcoal) */
+  --fs-cream-tint:   #242424;  /* secondary button, nested tint */
+  --fs-cream-sunk:   #2B2B2B;  /* disabled fill */
+  --fs-card:         #1C1C1C;
+  --fs-ink:          #1C1C1C;  /* nav bar, CTA pill, celebration ground, photo placeholder */
 
   /* ---- accents (one job each) ---- */
-  --fs-terracotta:       #C4562F;  /* ICON-ONLY surfaces: arrow circle, heart, dots. 4.23:1 -- too low for labels */
-  --fs-terracotta-text:  #B14A26;  /* any fill carrying a text label: #FFF8F2 on it = 4.9:1 */
-  --fs-terracotta-hover: #9F4021;
-  --fs-terracotta-deep:  #A8401F;  /* celebration gradient bottom */
-  --fs-terracotta-lift:  #D9663A;  /* celebration gradient top */
+  --fs-terracotta:       #FF4B2B;  /* ICON-ONLY surfaces: arrow circle, heart, dots. 3.2:1 with label -- too low for labels */
+  --fs-terracotta-text:  #D2361A;  /* any fill carrying a text label: #FFF8F2 on it = 4.7:1 */
+  --fs-terracotta-hover: #B92E14;
+  --fs-terracotta-deep:  #B8301A;  /* celebration gradient bottom */
+  --fs-terracotta-lift:  #FF6A4D;  /* celebration gradient top */
   --fs-forest:           #2F6B42;  /* confirmed / mode chips */
-  --fs-forest-tint:      #E7F0E9;
-  --fs-forest-ink:       #245333;
+  --fs-forest-tint:      #1E3326;
+  --fs-forest-ink:       #8FD6A6;  /* 7.9:1 on forest-tint */
   --fs-gold:             #E9C23F;  /* value + distance chips, notices, celebration eyebrow */
-  --fs-gold-tint:        #FBF2DC;
-  --fs-gold-line:        #F0DFB4;
+  --fs-gold-tint:        #2A2416;
+  --fs-gold-line:        #4A3F1F;
   --fs-destructive:      #A6503A;  /* confirm dialogs only */
 
   /* ---- text ---- */
-  /* ratios computed against --fs-cream #F7F1E8 unless noted */
-  --fs-text:        #171310;  /* 16.5:1 */
-  --fs-text-2:      #3D362E;  /* 11.6:1 */
-  --fs-text-3:      #574E43;  /*  7.3:1 -- body */
-  --fs-text-4:      #6B6155;  /*  5.4:1 */
-  --fs-text-5:      #7A6E5E;  /*  4.6:1 -- smallest AA-passing muted text, any size */
-  --fs-text-6:      #8A7B67;  /*  3.6:1 -- AA large-text only (>=24px or >=18.66px bold) */
-  --fs-placeholder: #7A6E5E;  /*  4.6:1 -- placeholders are content, must pass AA */
-  --fs-on-ink:      #FFF8F2;  /* 17.6:1 on ink, 4.9:1 on terracotta-text, 6.0:1 on forest */
+  /* ratios computed against --fs-cream #111111 (then --fs-card #1C1C1C) */
+  --fs-text:        #F4F1EC;  /* 16.8:1 */
+  --fs-text-2:      #DCD6CE;  /* 13.1:1 */
+  --fs-text-3:      #B8B2AA;  /*  9.0:1 -- body */
+  --fs-text-4:      #A39D95;  /*  7.0:1 */
+  --fs-text-5:      #8F8980;  /*  5.5:1 (4.9:1 on card) -- smallest AA-passing muted text, any size */
+  --fs-text-6:      #78726A;  /*  4.0:1 -- AA large-text only (>=24px or >=18.66px bold) */
+  --fs-placeholder: #8F8980;  /*  5.5:1 -- placeholders are content, must pass AA */
+  --fs-on-ink:      #FFF8F2;  /* 15:1 on ink, 4.7:1 on terracotta-text, 6.0:1 on forest */
   --fs-on-gold:     #171310;  /* 10.8:1 -- gold NEVER carries white */
   --fs-on-dark-2:   #EBDFD2;  /* supporting copy over scrim, 14.1:1 */
   --fs-on-dark-3:   #E4D8CB;  /* card body over scrim, 12.5:1 */
   --fs-on-dark-4:   #C6B8AB;  /* tertiary over scrim, 9.5:1 */
 
   /* ---- lines ---- */
-  --fs-line:        #E7DDCF;  /* card borders, list rules */
-  --fs-line-strong: #DFD5C6;  /* input rest, device edge */
-  --fs-line-faint:  #EFE7DA;  /* internal dividers */
+  --fs-line:        #2B2B2B;  /* card borders, list rules */
+  --fs-line-strong: #3A3A3A;  /* input rest, device edge */
+  --fs-line-faint:  #222222;  /* internal dividers */
 
   /* ---- photography scrims (CSS only, never baked into the asset) ---- */
   --fs-scrim-vertical: linear-gradient(to top, rgba(23,19,16,.86) 0%, rgba(23,19,16,.42) 46%, rgba(23,19,16,0) 100%);
@@ -81,8 +89,8 @@
   --fs-e-0: 0 1px 2px rgba(23,19,16,.05);
   --fs-e-1: 0 10px 20px -12px rgba(23,19,16,.30);
   --fs-e-2: 0 2px 4px rgba(23,19,16,.08), 0 28px 52px -22px rgba(23,19,16,.42);
-  --fs-e-float:   0 12px 30px -12px rgba(23,19,16,.55);   /* nav pill, CTA pill */
-  --fs-e-primary: 0 14px 28px -10px rgba(196,86,47,.60);
+  --fs-e-float:   0 0 0 1px rgba(255,248,242,.08), 0 12px 30px -12px rgba(0,0,0,.7);   /* nav pill, CTA pill; hairline so ink reads on charcoal */
+  --fs-e-primary: 0 14px 28px -10px rgba(255,75,43,.45);
   --fs-e-device:  0 2px 4px rgba(23,19,16,.05), 0 34px 64px -30px rgba(23,19,16,.40);
 
   /* ---- spacing (4px base) ---- */
@@ -112,9 +120,10 @@
   --fs-thumb-clearance: 96px;  /* swipe controls sit clear of the nav pill */
 
   /* ---- type ---- */
-  --fs-font-display:   "Archivo", system-ui, sans-serif;  /* 800, UPPERCASE, ls -.025 to -.04em */
-  --fs-font-editorial: "Fraunces", Georgia, serif;         /* 600, dish name + section titles only */
-  --fs-font-body:      "Inter", system-ui, sans-serif;
+  /* v3: one family. Display/editorial roles kept as aliases so existing font-display/font-headline classes still resolve. */
+  --fs-font-display:   "Inter Tight", system-ui, sans-serif;  /* 700-800, ls -.025 to -.04em */
+  --fs-font-editorial: "Inter Tight", system-ui, sans-serif;  /* dish name + section titles */
+  --fs-font-body:      "Inter Tight", system-ui, sans-serif;
   --fs-t-hero-d:  82px;  /* desktop celebration / marketing H1, lh .88 */
   --fs-t-hero:    56px;  /* mobile hero + cuisine title, lh .90 */
   --fs-t-h1:      44px;
@@ -194,9 +203,8 @@
   --radius-sm: var(--fs-r-sm);
 
   /*
-   * Archivo (display, headings/labels/CTA) + Fraunces (editorial -- dish
-   * name and section titles only, demoted from the v1 all-purpose headline
-   * role) + Inter (body). See BaseLayout.astro for the Google Fonts <link>.
+   * v3: all three roles resolve to Inter Tight. See BaseLayout.astro for the
+   * Google Fonts <link>.
    */
   --font-display: var(--fs-font-display);
   --font-headline: var(--fs-font-editorial);
@@ -268,9 +276,9 @@
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes celebration-heart-in {
-  0% { opacity: 0; transform: scale(0.5); box-shadow: 0 0 0 rgba(196,86,47,0); }
-  60% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 40px rgba(196,86,47,.65); }
-  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 24px rgba(196,86,47,.55); }
+  0% { opacity: 0; transform: scale(0.5); box-shadow: 0 0 0 rgba(255,75,43,0); }
+  60% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 40px rgba(255,75,43,.65); }
+  100% { opacity: 1; transform: scale(1); box-shadow: 0 0 24px rgba(255,75,43,.55); }
 }
 .animate-celebration-backdrop {
   animation: celebration-backdrop-in 0.5s ease-out both;

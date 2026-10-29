@@ -1,0 +1,440 @@
+---
+// Home-page 3D scroll world (design v3 "Charcoal & Tomato", ported from the
+// concept artifact LhUkXV51pHLRktD8VjcfMd). A fixed WebGL canvas of floating
+// real food-photo cards; native page scroll through the `.chapter` sections
+// inside `#world` drives one camera through five set pieces:
+//   0 cuisine cloud, 1 table code + people, 2 swipe stack, 3 match + heart,
+//   4 dishes laid out to order.
+// No WebGL -> the canvas keeps its CSS gradient and the copy still reads.
+// prefers-reduced-motion -> camera snaps per chapter, nothing idles.
+---
+
+<canvas id="scroll-world" aria-hidden="true"></canvas>
+<div class="scroll-world-vignette" aria-hidden="true"></div>
+
+<style>
+  #scroll-world {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    display: block;
+    background: radial-gradient(70% 60% at 60% 45%, #1e1a18, var(--fs-cream) 70%);
+  }
+  .scroll-world-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55));
+  }
+</style>
+
+<script>
+  import * as THREE from "three";
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const coarse = window.matchMedia("(pointer: coarse)").matches;
+  const canvas = document.getElementById("scroll-world") as HTMLCanvasElement;
+  const world = document.getElementById("world") as HTMLElement;
+  const chapters = Array.from(document.querySelectorAll<HTMLElement>(".chapter"));
+  const N = chapters.length;
+
+  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const smooth = (t: number) => t * t * (3 - 2 * t);
+  const bell = (x: number, c: number, w: number) => Math.max(0, 1 - ((x - c) / w) ** 2);
+
+  let target = 0;
+  let smoothP = 0;
+  let worldVisible = true;
+  // Scroll position at which each chapter is centred in the viewport.
+  // Progress is piecewise-linear between these, so a centred chapter lands
+  // exactly on its camera stop even though chapters differ in height.
+  let anchors: number[] = [];
+  function measure() {
+    anchors = chapters.map((c) => {
+      const r = c.getBoundingClientRect();
+      return Math.max(0, r.top + window.scrollY + r.height / 2 - window.innerHeight / 2);
+    });
+  }
+  function readProgress() {
+    const y = window.scrollY;
+    if (y <= anchors[0]) return 0;
+    for (let i = 0; i < N - 1; i++) {
+      if (y < anchors[i + 1]) return i + (y - anchors[i]) / Math.max(1, anchors[i + 1] - anchors[i]);
+    }
+    return N - 1;
+  }
+  function syncDom() {
+    const idx = Math.round(target);
+    chapters.forEach((c, i) => c.classList.toggle("is-active", i === idx));
+  }
+  window.addEventListener("scroll", () => { target = readProgress(); syncDom(); }, { passive: true });
+  window.addEventListener("resize", () => { measure(); target = readProgress(); syncDom(); });
+  measure();
+  target = smoothP = readProgress();
+  syncDom();
+
+  // Pause rendering once the world has scrolled away (footer / closing CTA).
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(([e]) => { worldVisible = e.isIntersecting; }).observe(world);
+  }
+
+  function hasGL() {
+    try {
+      const c = document.createElement("canvas");
+      return !!(window.WebGLRenderingContext && (c.getContext("webgl2") || c.getContext("webgl")));
+    } catch {
+      return false;
+    }
+  }
+
+  const fontsReady = document.fonts?.ready
+    ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))])
+    : Promise.resolve();
+  if (hasGL()) fontsReady.then(buildWorld);
+
+  function buildWorld() {
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2));
+    renderer.setClearColor(0x111111, 1);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x111111, 6, 13.5);
+    const fog = scene.fog as THREE.Fog;
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 120);
+
+    // Anchor of each chapter's set piece.
+    const O: [number, number, number][] = [[1.6, 0.3, 0], [-10, 0, -9], [10, 0, -9], [0, 0, -20], [0, -1, -33]];
+    // Camera ledger: desktop frames the piece away from the copy column;
+    // phones centre it above the bottom-anchored copy.
+    type Cam = { pos: number[]; tgt: number[]; fov: number };
+    const CH: (Cam & { m: Cam })[] = [
+      { pos: [-1.2, 0.5, 8.5], tgt: [-1.2, 0.2, 0], fov: 45, m: { pos: [1.6, 0.6, 11.5], tgt: [1.6, -1.4, 0], fov: 62 } },
+      { pos: [-8.3, 0.3, -2.2], tgt: [-8.3, 0, -9], fov: 42, m: { pos: [-10, 0.3, -1.2], tgt: [-10, -1.2, -9], fov: 60 } },
+      { pos: [8.3, 0.3, -2.2], tgt: [8.3, 0, -9], fov: 42, m: { pos: [10, 0.3, -1.2], tgt: [10, -1.2, -9], fov: 60 } },
+      { pos: [1.9, 0.3, -14.4], tgt: [1.9, 0.2, -20], fov: 42, m: { pos: [0, 0.4, -12.2], tgt: [0, -1.1, -20], fov: 60 } },
+      { pos: [-1.7, 3.6, -29], tgt: [-1.7, -1, -33], fov: 44, m: { pos: [0, 6, -26.4], tgt: [0, -3.6, -33], fov: 60 } },
+    ];
+
+    scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+    const key = new THREE.DirectionalLight(0xfff3e6, 3);
+    key.position.set(-3, 5, 6);
+    scene.add(key);
+    const rim = new THREE.PointLight(0xff4b2b, 12, 8, 2);
+    rim.position.set(O[3][0] + 1.5, O[3][1] + 1.5, O[3][2] - 1.2);
+    scene.add(rim);
+
+    type Draw = (g: CanvasRenderingContext2D, w: number, h: number, img: HTMLImageElement | null) => void;
+    function rr(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
+    }
+    function makeTex(w: number, h: number, draw: Draw) {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      draw(c.getContext("2d")!, w, h, null);
+      const t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      return { tex: t, redraw: (img: HTMLImageElement) => { draw(c.getContext("2d")!, w, h, img); t.needsUpdate = true; } };
+    }
+    const imgCache = new Map<string, Promise<HTMLImageElement>>();
+    function loadImg(src: string) {
+      if (!imgCache.has(src)) {
+        imgCache.set(src, new Promise((res, rej) => {
+          const img = new Image();
+          img.decoding = "async";
+          img.onload = () => res(img);
+          img.onerror = rej;
+          img.src = src;
+        }));
+      }
+      return imgCache.get(src)!;
+    }
+    function cover(g: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number) {
+      const s = Math.max(w / img.width, h / img.height);
+      g.drawImage(img, (w - img.width * s) / 2, (h - img.height * s) / 2, img.width * s, img.height * s);
+    }
+
+    // Photo card: rounded photo, bottom scrim, optional title/subtitle/badge;
+    // paints a charcoal placeholder first and redraws when the photo lands.
+    type CardOpts = { title?: string; sub?: string; badge?: string; badgeBg?: string; badgeInk?: string };
+    function photoCard(src: string, w: number, h: number, o: CardOpts = {}) {
+      const pw = 420;
+      const ph = Math.round((pw * h) / w);
+      const { tex, redraw } = makeTex(pw, ph, (g, W, H, img) => {
+        g.clearRect(0, 0, W, H);
+        g.save();
+        rr(g, 2, 2, W - 4, H - 4, 30);
+        g.clip();
+        g.fillStyle = "#222";
+        g.fillRect(0, 0, W, H);
+        if (img) cover(g, img, W, H);
+        const sc = g.createLinearGradient(0, H * 0.45, 0, H);
+        sc.addColorStop(0, "rgba(0,0,0,0)");
+        sc.addColorStop(1, "rgba(0,0,0,.82)");
+        g.fillStyle = sc;
+        g.fillRect(0, 0, W, H);
+        g.fillStyle = "#FFFFFF";
+        if (o.title) {
+          g.font = `700 ${Math.round(W * 0.12)}px 'Inter Tight', system-ui, sans-serif`;
+          g.fillText(o.title, 24, H - (o.sub ? 54 : 26));
+        }
+        if (o.sub) {
+          g.font = `500 ${Math.round(W * 0.052)}px 'Inter Tight', system-ui, sans-serif`;
+          g.fillStyle = "rgba(255,255,255,.82)";
+          g.fillText(o.sub, 26, H - 22);
+        }
+        if (o.badge) {
+          g.font = "600 22px 'Inter Tight', system-ui, sans-serif";
+          const bw = g.measureText(o.badge).width + 28;
+          g.fillStyle = o.badgeBg ?? "rgba(255,255,255,.92)";
+          rr(g, 18, 18, bw, 40, 20);
+          g.fill();
+          g.fillStyle = o.badgeInk ?? "#111";
+          g.fillText(o.badge, 32, 45);
+        }
+        g.restore();
+      });
+      loadImg(src).then(redraw, () => {});
+      return new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide }),
+      );
+    }
+
+    // ch0: a loose cloud of cuisine cards.
+    const CU: [string, string][] = [
+      ["korean", "Korean"], ["italian", "Italian"], ["mexican", "Mexican"], ["thai", "Thai"],
+      ["japanese", "Japanese"], ["indian-south", "South Indian"], ["indian-biryani", "Biryani"], ["vietnamese", "Vietnamese"],
+      ["french", "French"], ["greek", "Greek"], ["indian-street-food", "Street food"], ["indian-tandoor", "Tandoor"],
+    ];
+    let seed = 7;
+    const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    const cloud = CU.map(([slug, name], i) => {
+      const m = photoCard(`/images/cuisines/${slug}.jpg`, 1.05, 1.4, { title: name });
+      const a = (i / CU.length) * Math.PI * 2 + rnd() * 0.4;
+      const r = 1.6 + rnd() * 2.2;
+      m.userData.base = new THREE.Vector3(O[0][0] + Math.cos(a) * r * 1.05, O[0][1] + Math.sin(a) * r * 0.62, O[0][2] - 3 + rnd() * 4.5);
+      m.userData.ph = rnd() * 6.28;
+      m.rotation.set((rnd() - 0.5) * 0.25, (rnd() - 0.5) * 0.5, (rnd() - 0.5) * 0.18);
+      m.position.copy(m.userData.base);
+      scene.add(m);
+      return m;
+    });
+
+    // ch1: table code with people orbiting it.
+    const code = makeTex(720, 300, (g, W, H) => {
+      g.clearRect(0, 0, W, H);
+      g.fillStyle = "#1C1C1C";
+      rr(g, 3, 3, W - 6, H - 6, 44);
+      g.fill();
+      g.strokeStyle = "#3A3A3A";
+      g.lineWidth = 3;
+      g.stroke();
+      g.textAlign = "center";
+      g.fillStyle = "#8F8980";
+      g.font = "600 32px 'Inter Tight', sans-serif";
+      g.fillText("Your table", W / 2, 78);
+      g.fillStyle = "#F4F1EC";
+      g.font = "700 150px 'Inter Tight', sans-serif";
+      if ("letterSpacing" in g) (g as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = "18px";
+      g.fillText("K7QF", W / 2 + 9, 228);
+    });
+    const codePlane = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.08), new THREE.MeshBasicMaterial({ map: code.tex, transparent: true }));
+    codePlane.position.set(O[1][0], O[1][1] + 0.2, O[1][2]);
+    codePlane.rotation.y = 0.18;
+    scene.add(codePlane);
+    const people = ([["Y", "#F4F1EC", "#111111"], ["R", "#2E2E2E", "#F4F1EC"], ["D", "#2E2E2E", "#F4F1EC"]] as const).map(([l, fill, ink], i) => {
+      const t = makeTex(160, 160, (g, W, H) => {
+        g.clearRect(0, 0, W, H);
+        g.beginPath();
+        g.arc(W / 2, H / 2, W / 2 - 4, 0, Math.PI * 2);
+        g.fillStyle = fill;
+        g.fill();
+        g.fillStyle = ink;
+        g.font = "700 72px 'Inter Tight', sans-serif";
+        g.textAlign = "center";
+        g.textBaseline = "middle";
+        g.fillText(l, W / 2, H / 2 + 4);
+      });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: t.tex, transparent: true }));
+      m.userData.ph = i * 2.09;
+      scene.add(m);
+      return m;
+    });
+
+    // ch2: the swipe stack; only the top card is labelled so back cards
+    // don't show their text at the edge under perspective.
+    const stack = ([["italian", "Italian", "Margherita · Carbonara"], ["mexican"], ["korean"]] as string[][]).map(([slug, title, sub], i) => {
+      const m = photoCard(`/images/cuisines/${slug}.jpg`, 1.5, 2.0, i === 0 ? { title, sub, badge: "2 of 3 voted" } : {});
+      m.userData.base = new THREE.Vector3(O[2][0], O[2][1] - i * 0.13, O[2][2] - i * 0.3);
+      m.position.copy(m.userData.base);
+      m.scale.setScalar(1 - i * 0.06);
+      m.rotation.y = -0.12;
+      m.renderOrder = 3 - i;
+      scene.add(m);
+      return m;
+    });
+
+    // ch3: the match -- hero card, tomato heart, a restrained burst.
+    const hero = photoCard("/images/cuisines/korean.jpg", 1.7, 2.25, { title: "Korean tonight", sub: "Everyone said yes", badge: "3 of 3", badgeBg: "#FF4B2B", badgeInk: "#FFFFFF" });
+    hero.position.set(...O[3]);
+    scene.add(hero);
+    const hs = new THREE.Shape();
+    hs.moveTo(0, 0.25);
+    hs.bezierCurveTo(0, 0.25, -0.05, 0.5, -0.3, 0.5);
+    hs.bezierCurveTo(-0.65, 0.5, -0.65, 0.12, -0.65, 0.12);
+    hs.bezierCurveTo(-0.65, -0.1, -0.4, -0.35, 0, -0.6);
+    hs.bezierCurveTo(0.4, -0.35, 0.65, -0.1, 0.65, 0.12);
+    hs.bezierCurveTo(0.65, 0.12, 0.65, 0.5, 0.3, 0.5);
+    hs.bezierCurveTo(0.05, 0.5, 0, 0.25, 0, 0.25);
+    const heart = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(hs, { depth: 0.18, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.04, bevelSegments: 4, curveSegments: 24 }),
+      new THREE.MeshStandardMaterial({ color: 0xff4b2b, emissive: 0x5a1206, roughness: 0.4, metalness: 0 }),
+    );
+    heart.geometry.center();
+    heart.position.set(O[3][0] + 0.75, O[3][1] + 1.05, O[3][2] + 0.45);
+    heart.scale.setScalar(0.001);
+    scene.add(heart);
+    const confN = 60;
+    const conf = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(0.035, 0.08),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
+      confN,
+    );
+    const confDir: THREE.Vector3[] = [];
+    for (let i = 0; i < confN; i++) {
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(2 * Math.random() - 1);
+      const r = 0.6 + Math.random() * 0.6;
+      confDir.push(new THREE.Vector3(Math.sin(ph) * Math.cos(th) * r, Math.cos(ph) * r, Math.sin(ph) * Math.sin(th) * r * 0.5));
+      conf.setColorAt(i, new THREE.Color(i % 5 === 0 ? 0xff4b2b : 0xf4f1ec));
+    }
+    conf.position.copy(heart.position);
+    scene.add(conf);
+    const confObj = new THREE.Object3D();
+
+    // ch4: dishes laid out to order; the two unanimous ones lift.
+    const DI = [["bibimbap", "Bibimbap", "Locked · 3/3"], ["kimbap", "Kimbap", "Locked · 3/3"], ["korean-fried-chicken", "Fried chicken", "2/3"], ["japchae", "Japchae", "1/3"]];
+    const dishes = DI.map(([slug, title, badge], i) => {
+      const locked = i < 2;
+      const m = photoCard(`/images/dishes/korean/${slug}.jpg`, 1.25, 1.25, { title, badge, badgeBg: locked ? "#FF4B2B" : "rgba(17,17,17,.8)", badgeInk: "#FFFFFF" });
+      m.rotation.x = -Math.PI / 2;
+      m.rotation.z = (i % 2 ? -1 : 1) * 0.05;
+      m.position.set(O[4][0] + (i % 2 ? 0.72 : -0.72), O[4][1], O[4][2] + (i < 2 ? -0.72 : 0.72));
+      m.userData.locked = locked;
+      scene.add(m);
+      return m;
+    });
+
+    let mobile = false;
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      mobile = w < 760 || h > w * 1.2;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      fog.near = mobile ? 8 : 6; // phones sit the camera further back
+      fog.far = mobile ? 17 : 13.5;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    const pointer = { x: 0, y: 0, sx: 0, sy: 0 };
+    if (!coarse && !reduce) {
+      window.addEventListener("pointermove", (e) => {
+        pointer.x = e.clientX / window.innerWidth - 0.5;
+        pointer.y = e.clientY / window.innerHeight - 0.5;
+      }, { passive: true });
+    }
+
+    const vA = new THREE.Vector3(), vB = new THREE.Vector3(), tA = new THREE.Vector3(), tB = new THREE.Vector3(), look = new THREE.Vector3();
+    const cam = (c: (typeof CH)[number]) => (mobile ? c.m : c);
+    const bob = reduce ? 0 : 1;
+    const clock = new THREE.Clock();
+    let elapsed = 0;
+
+    function frame() {
+      requestAnimationFrame(frame);
+      if (!worldVisible || document.hidden) { clock.getDelta(); return; }
+      const dt = Math.min(clock.getDelta(), 1 / 30);
+      elapsed += dt;
+      smoothP = reduce ? Math.round(target) : smoothP + (target - smoothP) * (1 - Math.exp(-5 * dt));
+      const i0 = Math.floor(clamp(smoothP, 0, N - 1));
+      const i1 = Math.min(N - 1, i0 + 1);
+      const t = smooth(clamp(smoothP - i0, 0, 1));
+      const ca = cam(CH[i0]);
+      const cb = cam(CH[i1]);
+      vA.fromArray(ca.pos); vB.fromArray(cb.pos); tA.fromArray(ca.tgt); tB.fromArray(cb.tgt);
+      camera.position.lerpVectors(vA, vB, t);
+      look.lerpVectors(tA, tB, t);
+      camera.position.y += Math.sin(t * Math.PI) * 0.8; // gentle arc between set pieces
+      pointer.sx += (pointer.x - pointer.sx) * 0.05;
+      pointer.sy += (pointer.y - pointer.sy) * 0.05;
+      camera.position.x += pointer.sx * 0.45;
+      camera.position.y -= pointer.sy * 0.25;
+      camera.fov = lerp(ca.fov, cb.fov, t);
+      camera.updateProjectionMatrix();
+      camera.lookAt(look);
+
+      for (const m of cloud) {
+        m.position.y = m.userData.base.y + Math.sin(elapsed * 0.6 + m.userData.ph) * 0.08 * bob;
+        m.position.x = m.userData.base.x + Math.cos(elapsed * 0.4 + m.userData.ph) * 0.05 * bob;
+      }
+      for (const p of people) {
+        const a = elapsed * 0.45 * bob + p.userData.ph;
+        p.position.set(O[1][0] + Math.cos(a) * 1.9, O[1][1] + 0.2 + Math.sin(a) * 0.9, O[1][2] + Math.sin(a) * 0.6 + 0.4);
+        p.lookAt(camera.position);
+      }
+      codePlane.position.y = O[1][1] + 0.2 + Math.sin(elapsed * 1.1) * 0.04 * bob;
+
+      const sw = clamp((smoothP - 2.05) / 0.8, 0, 1);
+      stack.forEach((c, ci) => {
+        const b = c.userData.base as THREE.Vector3;
+        if (ci === 0) {
+          c.position.set(b.x + sw * 2.8, b.y + Math.sin(sw * Math.PI) * 0.3, b.z + sw * 0.4);
+          c.rotation.z = -sw * 0.45;
+          (c.material as THREE.MeshBasicMaterial).opacity = 1 - sw;
+        } else {
+          const prev = stack[ci - 1].userData.base as THREE.Vector3;
+          c.position.set(lerp(b.x, prev.x, sw), lerp(b.y, prev.y, sw), lerp(b.z, prev.z, sw));
+        }
+        c.position.y += Math.sin(elapsed * 1.2 + ci) * 0.015 * bob;
+      });
+
+      const m = bell(smoothP, 3, 0.8);
+      heart.scale.setScalar(0.001 + m * 0.75 * (1 + Math.sin(elapsed * 4.5) * 0.04 * bob));
+      heart.rotation.y = reduce ? 0.3 : Math.sin(elapsed * 0.9) * 0.5;
+      rim.intensity = 4 + m * 14;
+      const spread = 0.2 + m * 1.25;
+      for (let k = 0; k < confN; k++) {
+        confObj.position.copy(confDir[k]).multiplyScalar(spread);
+        confObj.rotation.set(elapsed * 1.5 + k, elapsed * 0.8 + k * 0.3, 0);
+        confObj.scale.setScalar(m > 0.03 ? 1 : 0.0001);
+        confObj.updateMatrix();
+        conf.setMatrixAt(k, confObj.matrix);
+      }
+      conf.instanceMatrix.needsUpdate = true;
+      hero.position.y = O[3][1] + Math.sin(elapsed * 0.8) * 0.04 * bob;
+
+      const lift = clamp((smoothP - 3.4) / 0.6, 0, 1);
+      dishes.forEach((d, di) => {
+        d.position.y = O[4][1] + (d.userData.locked ? lift * 0.18 + Math.sin(elapsed * 1.6 + di) * 0.02 * bob : 0);
+      });
+
+      renderer.render(scene, camera);
+    }
+    frame();
+  }
+</script>

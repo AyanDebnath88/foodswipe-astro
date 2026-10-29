@@ -540,7 +540,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                       <button
                         type="button"
                         onClick={() => goToDishes(place.name, address, place.website, phone)}
-                        className="flex-1 rounded-[var(--fs-r-pill)] bg-[var(--fs-on-ink)] px-2.5 py-1.5 text-center font-body text-[11px] font-semibold text-[var(--fs-text)] transition-shadow hover:shadow-[var(--fs-e-primary)]"
+                        className="flex-1 rounded-[var(--fs-r-pill)] bg-[var(--fs-on-ink)] px-2.5 py-1.5 text-center font-body text-[11px] font-semibold text-[var(--fs-ink)] transition-shadow hover:shadow-[var(--fs-e-primary)]"
                       >
                         Swipe dishes here
                       </button>
