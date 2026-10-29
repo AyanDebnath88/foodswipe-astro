@@ -12,6 +12,7 @@
 // prefers-reduced-motion -> progress snaps per chapter, nothing idles.
 ---
 
+<div class="scroll-world-aurora" aria-hidden="true"></div>
 <canvas id="scroll-world" aria-hidden="true"></canvas>
 <div class="scroll-world-vignette" aria-hidden="true"></div>
 
@@ -23,7 +24,23 @@
     height: 100%;
     z-index: 0;
     display: block;
-    background: radial-gradient(70% 60% at 65% 45%, #1e1a18, var(--fs-cream) 70%);
+  }
+  /* Slow tomato/amber aurora behind the transparent canvas: gives the glass panels colour to blur. */
+  .scroll-world-aurora {
+    position: fixed;
+    inset: -20%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(32% 28% at 68% 38%, rgba(255, 75, 43, 0.22), transparent 70%),
+      radial-gradient(26% 24% at 30% 70%, rgba(233, 194, 63, 0.1), transparent 70%),
+      radial-gradient(40% 36% at 80% 85%, rgba(184, 48, 26, 0.16), transparent 70%),
+      var(--fs-cream);
+    animation: aurora-drift 26s ease-in-out infinite alternate;
+  }
+  @keyframes aurora-drift {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(-4%, 3%, 0) scale(1.08); }
   }
   .scroll-world-vignette {
     position: fixed;
@@ -110,9 +127,9 @@
   if (hasGL()) fontsReady.then(buildWorld);
 
   function buildWorld() {
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2));
-    renderer.setClearColor(0x111111, 1);
+    renderer.setClearColor(0x000000, 0); // aurora shows through
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 50);
     camera.position.set(0, 0, 7.5);
@@ -127,6 +144,21 @@
     // Everything lives in one group so desktop/phone framing is one offset.
     const rig = new THREE.Group();
     scene.add(rig);
+
+    // Soft tomato glow behind the deck; swells at the match.
+    const glowCanvas = document.createElement("canvas");
+    glowCanvas.width = glowCanvas.height = 256;
+    const gg = glowCanvas.getContext("2d")!;
+    const rad = gg.createRadialGradient(128, 128, 0, 128, 128, 128);
+    rad.addColorStop(0, "rgba(255,75,43,.9)");
+    rad.addColorStop(0.4, "rgba(255,75,43,.25)");
+    rad.addColorStop(1, "rgba(255,75,43,0)");
+    gg.fillStyle = rad;
+    gg.fillRect(0, 0, 256, 256);
+    const glowMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowCanvas), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.3 });
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), glowMat);
+    glow.position.z = -1.2;
+    rig.add(glow);
 
     // ---------- canvas-texture helpers ----------
     type Draw = (g: CanvasRenderingContext2D, w: number, h: number, imgs: (HTMLImageElement | null)[]) => void;
@@ -183,6 +215,24 @@
       g.fillText(text, x + size * 0.65, y + size * 1.25);
     }
 
+    // Glass finish shared by every card face: diagonal gloss + a bone->tomato rim.
+    function glassFinish(g: CanvasRenderingContext2D, w: number, h: number) {
+      const gloss = g.createLinearGradient(0, 0, w * 0.75, h * 0.6);
+      gloss.addColorStop(0, "rgba(255,255,255,.2)");
+      gloss.addColorStop(0.35, "rgba(255,255,255,.05)");
+      gloss.addColorStop(0.36, "rgba(255,255,255,0)");
+      g.fillStyle = gloss;
+      g.fillRect(0, 0, w, h);
+      const rim = g.createLinearGradient(0, 0, w, h);
+      rim.addColorStop(0, "rgba(255,248,242,.55)");
+      rim.addColorStop(0.5, "rgba(255,75,43,.5)");
+      rim.addColorStop(1, "rgba(255,248,242,.12)");
+      g.strokeStyle = rim;
+      g.lineWidth = 4;
+      rr(g, 4, 4, w - 8, h - 8, 28);
+      g.stroke();
+    }
+
     // ---------- the deck ----------
     const W = 1.5, H = 2.0;
     const DECK: [string, string, string][] = [
@@ -216,6 +266,7 @@
         g.fillStyle = "rgba(255,255,255,.82)";
         g.fillText(sub, 26, h - 22);
         if (i === MATCH) badge(g, 18, 18, "3 of 3 said yes", "#FF4B2B", "#FFFFFF");
+        glassFinish(g, w, h);
         g.restore();
       });
       const frontMat = new THREE.MeshBasicMaterial({ map: front, transparent: true });
@@ -267,6 +318,7 @@
           g.stroke();
         }
       });
+      glassFinish(g, w, h);
       g.restore();
     });
     const backMesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: back, transparent: true }));
@@ -375,8 +427,9 @@
     }
 
     // Per-card poses. A pose is [x, y, z, rotZ].
-    // Back cards peek out at the top, so their labels (bottom) stay hidden.
-    const STACK = DECK.map((_, i) => [i * 0.03, i * 0.05, -i * 0.1, (i % 2 ? 0.03 : -0.03) * i]);
+    // Back cards peek out on the right only, so their labels (bottom-left) and
+    // the match badge (top-left) stay hidden under the top card.
+    const STACK = DECK.map((_, i) => [i * 0.035, i * 0.012, -i * 0.1, -0.012 * i]);
     const FAN = DECK.map((_, i) => {
       const a = (i - 2) * 0.2, R = 2.8;
       return [Math.sin(a) * R, Math.cos(a) * R - R + 0.45, -Math.abs(i - 2) * 0.08 - i * 0.01, -a];
@@ -453,6 +506,8 @@
       heart.scale.setScalar(0.001 + m * 0.6 * (1 + Math.sin(elapsed * 4.5) * 0.04 * bob));
       heart.rotation.y = reduce ? 0.3 : Math.sin(elapsed * 0.9) * 0.5;
       rim.intensity = m * 10;
+      glowMat.opacity = 0.28 + m * 0.4 + Math.sin(elapsed * 0.8) * 0.04 * bob;
+      glow.scale.setScalar(1 + m * 0.25);
       const spread = 0.2 + m * 1.2;
       for (let k = 0; k < confN; k++) {
         confObj.position.copy(confDir[k]).multiplyScalar(spread);

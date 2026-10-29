@@ -11,7 +11,7 @@ import React, { useState } from "react";
 import { ensureGuestSession } from "@/lib/guest-auth";
 import { createRoom, saveActiveRoom } from "@/lib/rooms";
 import { errorMessage } from "@/lib/errors";
-import { CtaArrow } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 
 export function QuickStart({ signedIn }: { signedIn: boolean }) {
   const [name, setName] = useState("");
@@ -53,7 +53,7 @@ export function QuickStart({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div className="grid w-full max-w-[26rem] gap-3">
-      <form onSubmit={start} className="flex items-center gap-2 rounded-[var(--fs-r-pill)] bg-[var(--fs-on-ink)] p-1.5 shadow-[var(--fs-e-float)]">
+      <form onSubmit={start} className="flex items-center gap-2 rounded-[var(--fs-r-pill)] border border-[var(--fs-glass-line)] bg-[var(--fs-glass)] p-1.5 shadow-[inset_0_1px_0_rgba(255,248,242,.12)]">
         {!signedIn && (
           <input
             aria-label="Your name"
@@ -62,16 +62,16 @@ export function QuickStart({ signedIn }: { signedIn: boolean }) {
             maxLength={40}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="h-11 min-w-0 flex-1 bg-transparent pl-4 font-body text-base text-[var(--fs-ink)] placeholder:text-[var(--fs-ink)]/65 focus:outline-none"
+            className="h-11 min-w-0 flex-1 bg-transparent pl-4 font-body text-base text-[var(--fs-on-ink)] placeholder:text-[var(--fs-on-dark-4)] focus:outline-none"
           />
         )}
         <button
           type="submit"
           disabled={busy}
-          className={`group inline-flex h-11 shrink-0 items-center gap-3 rounded-[var(--fs-r-pill)] font-body text-base font-semibold text-[var(--fs-ink)] disabled:opacity-60 ${signedIn ? "w-full justify-between pl-4" : "pl-2"}`}
+          className={`group inline-flex h-11 shrink-0 items-center gap-2 rounded-[var(--fs-r-pill)] bg-[var(--fs-terracotta-text)] px-5 font-body text-base font-semibold text-[var(--fs-on-ink)] shadow-[var(--fs-e-primary)] transition-[background-color,box-shadow] hover:bg-[var(--fs-terracotta-hover)] hover:shadow-[0_0_32px_rgba(255,75,43,.55)] disabled:opacity-60 ${signedIn ? "w-full justify-between" : ""}`}
         >
           <span>{busy ? "Setting the table…" : "Start a table"}</span>
-          <CtaArrow className="h-10 w-10 group-hover:h-10 group-hover:w-10" />
+          <ArrowRight className="h-[18px] w-[18px] transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </button>
       </form>
 
@@ -84,7 +84,7 @@ export function QuickStart({ signedIn }: { signedIn: boolean }) {
           autoComplete="off"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          className="h-9 w-20 rounded-[var(--fs-r-sm)] border border-[var(--fs-line-strong)] bg-[var(--fs-card)] text-center font-body text-sm font-semibold uppercase tracking-[.2em] text-[var(--fs-text)] placeholder:text-[var(--fs-text-6)] focus:border-[var(--fs-text-4)] focus:outline-none"
+          className="h-9 w-20 rounded-[var(--fs-r-sm)] border border-[var(--fs-glass-line)] bg-[var(--fs-glass)] text-center font-body text-sm font-semibold uppercase tracking-[.2em] text-[var(--fs-text)] placeholder:text-[var(--fs-text-6)] focus:border-[var(--fs-text-4)] focus:outline-none"
         />
         <button type="submit" className="font-body text-sm font-semibold text-[var(--fs-text)] underline-offset-4 hover:underline">
           Join

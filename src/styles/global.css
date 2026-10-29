@@ -222,6 +222,38 @@
 }
 
 /*
+ * Frosted glass surface (home page copy, header, quick start). Charcoal
+ * alpha fill + blur so whatever sits behind (the 3D deck, the aurora)
+ * reads through softly. Pair with .fs-glass-border for the masked
+ * bone->tomato edge. No-blur browsers get a near-solid fill instead.
+ */
+.fs-glass {
+  background: linear-gradient(180deg, rgba(255, 248, 242, 0.07), rgba(255, 248, 242, 0.015));
+  background-color: rgba(28, 28, 28, 0.42);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 248, 242, 0.1);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .fs-glass { background-color: rgba(28, 28, 28, 0.88); }
+}
+.fs-glass-border {
+  position: relative;
+}
+.fs-glass-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  background: linear-gradient(145deg, rgba(255, 248, 242, 0.3) 0%, rgba(255, 75, 43, 0.45) 45%, rgba(255, 248, 242, 0.06) 100%);
+  pointer-events: none;
+}
+
+/*
  * Card-exit animations (swipe deck). Unchanged mechanics from v1, kept as
  * plain CSS since Tailwind v4's @theme can't express multi-step keyframes.
  */
