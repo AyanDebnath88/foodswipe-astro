@@ -99,11 +99,17 @@ async function main() {
     await s.page.waitForURL(/\/match\/[^/?]+\/[^/?]+/, { timeout: 15000 }).catch(() => console.log(`  ${s.label}: no navigation to restaurant page`));
   }
   await capture(ava, "restaurant-dish-menu");
-  // both tap the first two dishes so something locks unanimously
+  // Same restaurant for both, then both tap the same two dishes BY NAME:
+  // the dish grid is shuffled per user (deliberate, dish-swipe-area.tsx), so
+  // "the first two tiles" are different dishes on each screen.
+  await ben.page.goto(ava.page.url(), { waitUntil: "networkidle" });
+  for (const s of [ava, ben]) await s.page.locator("button[aria-pressed]").first().waitFor({ timeout: 20000 });
+  const picks = (await ava.page.$$eval("button[aria-pressed]", (bs) => bs.map((b) => b.querySelector("span.line-clamp-2")?.textContent?.trim()))).slice(0, 2);
   for (const s of [ava, ben]) {
-    const dishes = s.page.locator("button[aria-pressed]");
-    const count = await dishes.count();
-    for (let k = 0; k < Math.min(2, count); k++) { await dishes.nth(k).click().catch(() => {}); await s.page.waitForTimeout(400); }
+    for (const name of picks) {
+      await s.page.locator("button[aria-pressed]", { hasText: name }).first().click().catch(() => {});
+      await s.page.waitForTimeout(600);
+    }
   }
   await ava.page.waitForTimeout(1500);
   await capture(ava, "dishes-selected");
