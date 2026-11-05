@@ -32,7 +32,7 @@ const pathname = Astro.url.pathname;
   appearing, expandable again on tap -- the fix for "too much chrome on
   first load" feedback).
 -->
-<nav aria-label="Primary" class="lg:sticky lg:top-0 lg:z-40 lg:flex lg:h-[var(--fs-appbar-h)] lg:w-full lg:items-center lg:justify-between lg:bg-[var(--fs-ink)] lg:px-10">
+<nav aria-label="Primary" class="lg:sticky lg:top-0 lg:z-40 lg:flex lg:h-[var(--fs-appbar-h)] lg:w-full lg:items-center lg:justify-between lg:bg-[var(--fs-ink)]/70 lg:backdrop-blur-xl lg:border-b lg:border-[var(--fs-line)] lg:px-10">
   <a href="/" class="hidden shrink-0 items-center gap-2 lg:flex" aria-label="Food Swipe home">
     <div class="rounded-[var(--fs-r-sm)] bg-[var(--fs-terracotta)] p-1.5 text-[var(--fs-on-ink)]">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5" aria-hidden="true">
@@ -41,7 +41,7 @@ const pathname = Astro.url.pathname;
         <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
       </svg>
     </div>
-    <span class="font-display text-lg font-extrabold uppercase tracking-[-.02em] text-[var(--fs-on-ink)]">Food Swipe</span>
+    <span class="font-display text-lg font-bold tracking-[-.02em] text-[var(--fs-on-ink)]">Food Swipe</span>
   </a>
 
   <HeaderNav roomCode={roomCode} pathname={pathname} client:load />

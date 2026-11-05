@@ -36,11 +36,8 @@ export function CuisineDishGuide({ cuisineId, cuisineName, dishes }: CuisineDish
 
   return (
     <section className="w-full px-1">
-      <p className="font-body text-[length:var(--fs-t-label)] font-bold uppercase tracking-[var(--fs-tracking-label)] text-muted-foreground">
-        Get to know {cuisineName}
-      </p>
-      <h2 className="mt-1 font-display text-2xl font-extrabold uppercase tracking-[-.02em] text-foreground">
-        What&rsquo;s on the menu
+      <h2 className="font-display text-2xl font-bold tracking-[-.03em] text-foreground">
+        What&rsquo;s on the {cuisineName} menu
       </h2>
       <div className="mt-4 flex flex-col gap-3 lg:gap-3">
         {dishes.map((dish, i) => (
@@ -77,7 +74,7 @@ function DishEntry({ cuisineId, dishName, index }: { cuisineId: string; dishName
   return (
     <div
       ref={ref}
-      className={`flex items-center gap-4 rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card p-3 transition-all duration-500 lg:gap-3 lg:p-2.5 ${
+      className={`flex items-center gap-4 rounded-[var(--fs-r-lg)] border border-[var(--fs-line)] bg-card p-3 transition-[opacity,transform] duration-[220ms] ease-[var(--fs-ease-out)] lg:gap-3 lg:p-2.5 ${
         visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
       }`}
       style={{ transitionDelay: visible ? "0ms" : `${Math.min(index, 6) * 70}ms` }}

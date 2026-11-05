@@ -507,7 +507,7 @@ export function DishSwipeArea({
           )}
           <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
           <div className="absolute inset-x-0 bottom-0 p-5 text-center text-[var(--fs-on-ink)]">
-            <h3 className="font-display text-2xl font-extrabold uppercase tracking-[-.02em]">Your table's order</h3>
+            <h3 className="font-display text-2xl font-bold tracking-[-.03em]">Your table's order</h3>
             <p className="mt-0.5 font-body text-sm text-[var(--fs-on-dark-3)]">
               {agreed.length > 0
                 ? `${agreed.length} dish${agreed.length === 1 ? "" : "es"} everyone agreed on.`
@@ -617,8 +617,8 @@ export function DishSwipeArea({
       ) : (
         <ul className="mt-3 space-y-1.5">
           {agreedHere.map((match) => (
-            <li key={match.id} className="flex items-center gap-2 text-sm font-body">
-              <Check className="h-4 w-4 text-primary shrink-0" />
+            <li key={match.id} className="flex items-center gap-2 rounded-[var(--fs-r-sm)] text-sm font-body animate-lock-pulse">
+              <Check className="h-4 w-4 text-[var(--fs-gold)] shrink-0" />
               <span className="font-medium text-foreground">{match.dishName}</span>
             </li>
           ))}
@@ -755,8 +755,8 @@ export function DishSwipeArea({
                 type="button"
                 onClick={() => handleSwipe(liked ? "left" : "right", dish)}
                 aria-pressed={liked}
-                className={`group relative aspect-square overflow-hidden rounded-[var(--fs-r-lg)] bg-[var(--fs-ink)] text-left shadow-[var(--fs-e-0)] transition-all duration-200 animate-page-load ${
-                  liked ? "ring-2 ring-[var(--fs-terracotta)] ring-offset-2 ring-offset-background" : "hover:shadow-[var(--fs-e-1)]"
+                className={`group relative aspect-square overflow-hidden rounded-[var(--fs-r-lg)] bg-[var(--fs-ink)] text-left shadow-[var(--fs-e-0)] transition-[transform,box-shadow] duration-200 ease-[var(--fs-ease-out)] active:scale-[0.97] animate-page-load ${
+                  liked ? "ring-2 ring-[var(--fs-gold)] ring-offset-2 ring-offset-background" : "hover:shadow-[var(--fs-e-1)]"
                 }`}
                 style={{ "--stagger-delay": `${Math.min(i, 12) * 0.07}s` } as React.CSSProperties}
               >

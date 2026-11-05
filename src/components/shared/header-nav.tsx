@@ -163,7 +163,7 @@ export function HeaderNav({ roomCode = null, pathname }: HeaderNavProps) {
           style={{ bottom: "var(--fs-nav-bottom)" }}
         >
           {navExpanded ? (
-            <div className="flex h-[var(--fs-nav-pill-h)] items-center justify-around gap-2 rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-1.5 shadow-[var(--fs-e-float)] animate-nav-fly-in-up">
+            <div className="flex h-[var(--fs-nav-pill-h)] items-center justify-around gap-2 fs-glass fs-glass-border rounded-[var(--fs-r-pill)] px-1.5 animate-nav-fly-in-up">
               {items}
             </div>
           ) : (
@@ -171,7 +171,7 @@ export function HeaderNav({ roomCode = null, pathname }: HeaderNavProps) {
               type="button"
               onClick={expandNav}
               aria-label="Show sign in options"
-              className="ml-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--fs-ink)] text-[var(--fs-on-ink)] shadow-[var(--fs-e-float)] animate-nav-fly-in-up"
+              className="ml-auto flex h-14 w-14 items-center justify-center fs-glass fs-glass-border rounded-full text-[var(--fs-on-ink)] animate-nav-fly-in-up"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -241,7 +241,7 @@ export function HeaderNav({ roomCode = null, pathname }: HeaderNavProps) {
         style={{ bottom: "var(--fs-nav-bottom)" }}
       >
         {navExpanded ? (
-          <div className="flex h-[var(--fs-nav-pill-h)] items-center justify-around rounded-[var(--fs-r-pill)] bg-[var(--fs-ink)] px-1.5 shadow-[var(--fs-e-float)] animate-nav-fly-in-up">
+          <div className="flex h-[var(--fs-nav-pill-h)] items-center justify-around fs-glass fs-glass-border rounded-[var(--fs-r-pill)] px-1.5 animate-nav-fly-in-up">
             {NAV_ITEMS.map(({ href, label, icon }) => (
               <NavItem key={href} href={href} label={label} Icon={icon} active={isActive(pathname, href)} />
             ))}
@@ -251,7 +251,7 @@ export function HeaderNav({ roomCode = null, pathname }: HeaderNavProps) {
             type="button"
             onClick={expandNav}
             aria-label="Show navigation"
-            className="ml-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--fs-ink)] text-[var(--fs-on-ink)] shadow-[var(--fs-e-float)] animate-nav-fly-in-up"
+            className="ml-auto flex h-14 w-14 items-center justify-center fs-glass fs-glass-border rounded-full text-[var(--fs-on-ink)] animate-nav-fly-in-up"
           >
             <Menu className="h-5 w-5" aria-hidden="true" />
           </button>

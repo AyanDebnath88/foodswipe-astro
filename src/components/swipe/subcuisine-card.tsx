@@ -71,11 +71,12 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => endDrag(e, false);
 
   const rotation = pos.x / 20;
-  const transform = `translate(${pos.x}px, ${pos.y}px) rotate(${rotation}deg) scale(${isDragging ? 1.05 : 1})`;
-
-  let animationClass = "";
-  if (exitDirection === "left") animationClass = "animate-swipe-out-left";
-  if (exitDirection === "right") animationClass = "animate-swipe-out-right";
+  // Exit is a transition to an off-screen pose, so the card leaves from
+  // wherever the finger let go instead of snapping back to centre first.
+  const exitDir = exitDirection === "right" ? 1 : exitDirection === "left" ? -1 : 0;
+  const transform = exitDir
+    ? `translate(${exitDir * 150}%, ${pos.y}px) rotate(${exitDir * 20}deg) scale(1)`
+    : `translate(${pos.x}px, ${pos.y}px) rotate(${rotation}deg) scale(${isDragging ? 1.05 : 1})`;
 
   return (
     <div
@@ -86,13 +87,14 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
       onPointerCancel={handlePointerCancel}
       style={{
         transform,
-        transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+        opacity: exitDir ? 0 : 1,
+        transition: isDragging ? "none" : "transform 300ms var(--fs-ease-out), opacity 300ms var(--fs-ease-out)",
         zIndex,
         touchAction: isActive ? "none" : "auto",
       }}
       className={`absolute w-full h-full max-w-sm md:max-w-[var(--fs-card-max)] max-h-[500px] md:max-h-[540px] rounded-[var(--fs-r-2xl)] overflow-hidden shadow-[var(--fs-e-2)] bg-[var(--fs-ink)] ${
         isActive ? "cursor-grab" : ""
-      } ${animationClass}`}
+      }`}
     >
       <div className="relative w-full h-full flex flex-col">
         {heroImage ? (
@@ -112,7 +114,7 @@ export function SubcuisineCard({ subcuisine, onSwipe, isActive, zIndex }: Subcui
         )}
         <div className="absolute inset-0" style={{ background: "var(--fs-scrim-card)" }} />
         <div className="absolute bottom-0 left-0 right-0 p-6 text-[var(--fs-on-ink)]">
-          <h2 className="font-display text-[34px] font-extrabold uppercase leading-[0.95] tracking-[-.03em]">
+          <h2 className="font-display text-[34px] font-bold leading-[0.98] tracking-[-.035em]">
             {subcuisine.name}
           </h2>
           <div className="mt-4 flex flex-wrap gap-2">

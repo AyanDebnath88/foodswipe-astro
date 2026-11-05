@@ -18,60 +18,60 @@
 
 :root {
   /*
-   * v3 "Charcoal & Tomato" (Resy-derived; concept artifact LhUkXV51pHLRktD8VjcfMd).
-   * Values swapped in place, names kept so every existing var(--fs-*) follows:
-   * "cream" is now the charcoal canvas, "ink" the raised dark surface,
-   * "terracotta" is tomato. Single dark theme.
+   * v4 "Maroon, Tomato & Neon". Values swapped in place, names kept so every
+   * existing var(--fs-*) follows: "cream" is the deep-maroon canvas, "ink"
+   * the raised maroon surface, "terracotta" is tomato, "gold" is the neon
+   * yellow accent (decision moments only: match, locks, votes, focus).
+   * Single dark theme. Ratios below computed against canvas, then card.
    */
   color-scheme: dark;
 
   /* ---- surfaces ---- */
-  --fs-cream:        #111111;  /* app canvas (charcoal) */
-  --fs-cream-tint:   #242424;  /* secondary button, nested tint */
-  --fs-cream-sunk:   #2B2B2B;  /* disabled fill */
-  --fs-card:         #1C1C1C;
-  --fs-ink:          #1C1C1C;  /* nav bar, CTA pill, celebration ground, photo placeholder */
+  --fs-cream:        #1A0509;  /* app canvas (deep maroon) */
+  --fs-cream-tint:   #3A111B;  /* secondary button, nested tint */
+  --fs-cream-sunk:   #451722;  /* disabled fill */
+  --fs-card:         rgba(43, 10, 18, 0.62);  /* glass card: frosted by the .bg-card rule below */
+  --fs-ink:          #2B0A12;  /* nav bar, CTA pill, celebration ground, photo placeholder */
 
   /* ---- accents (one job each) ---- */
   --fs-terracotta:       #FF4B2B;  /* ICON-ONLY surfaces: arrow circle, heart, dots. 3.2:1 with label -- too low for labels */
   --fs-terracotta-text:  #D2361A;  /* any fill carrying a text label: #FFF8F2 on it = 4.7:1 */
   --fs-terracotta-hover: #B92E14;
-  --fs-terracotta-deep:  #B8301A;  /* celebration gradient bottom */
+  --fs-terracotta-deep:  #8E1F12;  /* celebration gradient bottom */
   --fs-terracotta-lift:  #FF6A4D;  /* celebration gradient top */
-  --fs-forest:           #2F6B42;  /* confirmed / mode chips */
+  --fs-forest:           #2F6B42;  /* confirmed / mode chips (status only) */
   --fs-forest-tint:      #1E3326;
   --fs-forest-ink:       #8FD6A6;  /* 7.9:1 on forest-tint */
-  --fs-gold:             #E9C23F;  /* value + distance chips, notices, celebration eyebrow */
-  --fs-gold-tint:        #2A2416;
-  --fs-gold-line:        #4A3F1F;
+  --fs-gold:             #E8FF3A;  /* NEON accent: votes, locks, match eyebrow, distance chips, focus. 16:1 on card */
+  --fs-gold-tint:        #33300F;
+  --fs-gold-line:        #6E6B1F;
   --fs-destructive:      #A6503A;  /* confirm dialogs only */
 
   /* ---- text ---- */
-  /* ratios computed against --fs-cream #111111 (then --fs-card #1C1C1C) */
-  --fs-text:        #F4F1EC;  /* 16.8:1 */
-  --fs-text-2:      #DCD6CE;  /* 13.1:1 */
-  --fs-text-3:      #B8B2AA;  /*  9.0:1 -- body */
-  --fs-text-4:      #A39D95;  /*  7.0:1 */
-  --fs-text-5:      #8F8980;  /*  5.5:1 (4.9:1 on card) -- smallest AA-passing muted text, any size */
-  --fs-text-6:      #78726A;  /*  4.0:1 -- AA large-text only (>=24px or >=18.66px bold) */
-  --fs-placeholder: #8F8980;  /*  5.5:1 -- placeholders are content, must pass AA */
-  --fs-on-ink:      #FFF8F2;  /* 15:1 on ink, 4.7:1 on terracotta-text, 6.0:1 on forest */
-  --fs-on-gold:     #171310;  /* 10.8:1 -- gold NEVER carries white */
-  --fs-on-dark-2:   #EBDFD2;  /* supporting copy over scrim, 14.1:1 */
-  --fs-on-dark-3:   #E4D8CB;  /* card body over scrim, 12.5:1 */
-  --fs-on-dark-4:   #C6B8AB;  /* tertiary over scrim, 9.5:1 */
+  --fs-text:        #FFF1EA;  /* 17.8:1 / 16.5:1 */
+  --fs-text-2:      #F6D9D1;  /* 14.7:1 */
+  --fs-text-3:      #E2B9AF;  /* 11.0:1 -- body */
+  --fs-text-4:      #CFA095;  /*  8.5:1 */
+  --fs-text-5:      #BC8A80;  /*  6.6:1 (6.1:1 on card) -- smallest muted text, any size */
+  --fs-text-6:      #9C6C63;  /*  4.4:1 -- large text only */
+  --fs-placeholder: #BC8A80;  /*  6.6:1 -- placeholders are content, must pass AA */
+  --fs-on-ink:      #FFF8F2;  /* 4.7:1 on terracotta-text, 6.0:1 on forest */
+  --fs-on-gold:     #1A0509;  /* 17.6:1 -- neon NEVER carries white */
+  --fs-on-dark-2:   #F3E2DA;  /* supporting copy over scrim */
+  --fs-on-dark-3:   #EAD3CA;  /* card body over scrim */
+  --fs-on-dark-4:   #D3B2A8;  /* tertiary over scrim */
 
   /* ---- lines ---- */
-  --fs-line:        #2B2B2B;  /* card borders, list rules */
-  --fs-line-strong: #3A3A3A;  /* input rest, device edge */
-  --fs-line-faint:  #222222;  /* internal dividers */
+  --fs-line:        #4A1B26;  /* card borders, list rules */
+  --fs-line-strong: #5E2532;  /* input rest, device edge */
+  --fs-line-faint:  #34101A;  /* internal dividers */
 
   /* ---- photography scrims (CSS only, never baked into the asset) ---- */
-  --fs-scrim-vertical: linear-gradient(to top, rgba(23,19,16,.86) 0%, rgba(23,19,16,.42) 46%, rgba(23,19,16,0) 100%);
-  --fs-scrim-card:     linear-gradient(to top, rgba(23,19,16,.90) 0%, rgba(23,19,16,.24) 46%, rgba(23,19,16,.40) 100%);
-  --fs-scrim-hero-d:   linear-gradient(100deg, rgba(23,19,16,.90) 0%, rgba(23,19,16,.66) 42%, rgba(23,19,16,.12) 78%, rgba(23,19,16,0) 100%);
-  --fs-glass:          rgba(255,248,242,.18);  /* on-photo chips; add 6px blur */
-  --fs-glass-line:     rgba(255,248,242,.34);
+  --fs-scrim-vertical: linear-gradient(to top, rgba(26,5,9,.88) 0%, rgba(26,5,9,.42) 46%, rgba(26,5,9,0) 100%);
+  --fs-scrim-card:     linear-gradient(to top, rgba(26,5,9,.92) 0%, rgba(26,5,9,.24) 46%, rgba(26,5,9,.40) 100%);
+  --fs-scrim-hero-d:   linear-gradient(100deg, rgba(26,5,9,.92) 0%, rgba(26,5,9,.66) 42%, rgba(26,5,9,.12) 78%, rgba(26,5,9,0) 100%);
+  --fs-glass:          rgba(255,248,242,.14);  /* on-photo chips; add 6px blur */
+  --fs-glass-line:     rgba(255,248,242,.30);
   /* rule: >=300px of usable scrim at the bottom of any full-bleed image; never scrim >60% of height */
 
   /* ---- radius: five steps tied to meaning, not size ---- */
@@ -86,12 +86,12 @@
   --fs-r-device: 46px;
 
   /* ---- elevation: one ambient shadow per floating element; photos never carry shadow ---- */
-  --fs-e-0: 0 1px 2px rgba(23,19,16,.05);
-  --fs-e-1: 0 10px 20px -12px rgba(23,19,16,.30);
-  --fs-e-2: 0 2px 4px rgba(23,19,16,.08), 0 28px 52px -22px rgba(23,19,16,.42);
-  --fs-e-float:   0 0 0 1px rgba(255,248,242,.08), 0 12px 30px -12px rgba(0,0,0,.7);   /* nav pill, CTA pill; hairline so ink reads on charcoal */
+  --fs-e-0: 0 1px 2px rgba(10,1,3,.25);
+  --fs-e-1: 0 10px 20px -12px rgba(10,1,3,.6);
+  --fs-e-2: 0 2px 4px rgba(10,1,3,.3), 0 28px 52px -22px rgba(10,1,3,.75);
+  --fs-e-float:   0 0 0 1px rgba(255,248,242,.1), 0 12px 30px -12px rgba(10,1,3,.8);   /* nav pill, CTA pill; hairline so ink reads on maroon */
   --fs-e-primary: 0 14px 28px -10px rgba(255,75,43,.45);
-  --fs-e-device:  0 2px 4px rgba(23,19,16,.05), 0 34px 64px -30px rgba(23,19,16,.40);
+  --fs-e-device:  0 2px 4px rgba(10,1,3,.3), 0 34px 64px -30px rgba(10,1,3,.7);
 
   /* ---- spacing (4px base) ---- */
   --fs-1: 4px;  --fs-2: 8px;  --fs-3: 12px; --fs-4: 16px; --fs-5: 20px;
@@ -196,7 +196,7 @@
 
   --color-border: var(--fs-line);
   --color-input: var(--fs-line-strong);
-  --color-ring: var(--fs-terracotta);
+  --color-ring: var(--fs-gold);
 
   --radius-lg: var(--fs-r-xl);
   --radius-md: var(--fs-r-lg);
@@ -216,9 +216,33 @@
     border-color: var(--fs-line);
   }
   body {
-    background-color: var(--fs-cream);
+    /* Fixed maroon aurora behind every page so glass surfaces have colour to frost. */
+    background:
+      radial-gradient(60% 45% at 85% 0%, rgba(255, 75, 43, 0.16), transparent 70%),
+      radial-gradient(50% 40% at 0% 100%, rgba(142, 31, 18, 0.35), transparent 70%),
+      radial-gradient(35% 30% at 70% 90%, rgba(232, 255, 58, 0.05), transparent 70%),
+      var(--fs-cream);
+    background-attachment: fixed;
     color: var(--fs-text);
+    caret-color: var(--fs-gold);
   }
+  ::selection {
+    background: var(--fs-gold);
+    color: var(--fs-on-gold);
+  }
+  :focus-visible {
+    outline: 2px solid var(--fs-gold);
+    outline-offset: 2px;
+  }
+  html {
+    scrollbar-color: var(--fs-line-strong) var(--fs-cream);
+  }
+}
+
+/* Every card surface is frosted glass (fill is the translucent --fs-card). */
+.bg-card {
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
 
 /*
@@ -229,13 +253,14 @@
  */
 .fs-glass {
   background: linear-gradient(180deg, rgba(255, 248, 242, 0.07), rgba(255, 248, 242, 0.015));
-  background-color: rgba(28, 28, 28, 0.42);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 248, 242, 0.1);
+  background-color: rgba(43, 10, 18, 0.45);
+  box-shadow: 0 20px 48px rgba(10, 1, 3, 0.55), inset 0 1px 0 rgba(255, 248, 242, 0.1);
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .fs-glass { background-color: rgba(28, 28, 28, 0.88); }
+  .fs-glass { background-color: rgba(43, 10, 18, 0.9); }
+  .bg-card { background-color: #2B0A12; }
 }
 .fs-glass-border {
   position: relative;
@@ -249,27 +274,21 @@
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  background: linear-gradient(145deg, rgba(255, 248, 242, 0.3) 0%, rgba(255, 75, 43, 0.45) 45%, rgba(255, 248, 242, 0.06) 100%);
+  background: linear-gradient(145deg, rgba(255, 248, 242, 0.3) 0%, rgba(255, 75, 43, 0.45) 45%, rgba(232, 255, 58, 0.18) 100%);
   pointer-events: none;
 }
 
 /*
- * Card-exit animations (swipe deck). Unchanged mechanics from v1, kept as
- * plain CSS since Tailwind v4's @theme can't express multi-step keyframes.
+ * Dish lock: one neon ring when the whole table agrees on a dish (plan 003).
+ * Card exits are transitions in the card components now (plan 001), so they
+ * retarget from the drag position instead of restarting from centre.
  */
-@keyframes swipe-out-left {
-  from { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
-  to { transform: translateX(-200%) rotate(-20deg) scale(0.8); opacity: 0; }
+@keyframes lock-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(232, 255, 58, 0.55); }
+  100% { box-shadow: 0 0 0 14px rgba(232, 255, 58, 0); }
 }
-@keyframes swipe-out-right {
-  from { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
-  to { transform: translateX(200%) rotate(20deg) scale(0.8); opacity: 0; }
-}
-.animate-swipe-out-left {
-  animation: swipe-out-left 0.5s var(--fs-ease-out) forwards;
-}
-.animate-swipe-out-right {
-  animation: swipe-out-right 0.5s var(--fs-ease-out) forwards;
+.animate-lock-pulse {
+  animation: lock-pulse 600ms var(--fs-ease-out) 1;
 }
 
 /*

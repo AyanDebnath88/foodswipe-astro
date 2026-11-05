@@ -240,7 +240,7 @@ export function RoomsDashboard() {
   return (
     <div className="container mx-auto px-4 max-w-4xl pb-16">
       <div className="text-center mb-12">
-        <h1 className="font-display text-4xl font-extrabold uppercase tracking-[-.02em] text-foreground md:text-5xl">
+        <h1 className="font-display text-4xl font-bold tracking-[-.035em] text-foreground md:text-5xl">
           Social Swiping Rooms
         </h1>
         <p className="text-muted-foreground mt-3 font-body text-lg max-w-2xl mx-auto">

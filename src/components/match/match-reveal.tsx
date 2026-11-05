@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { fetchRoomByCode, type RoomState } from "@/lib/rooms";
-import { CUISINE_EMOJI } from "@/lib/cuisines";
 import { fetchSubcuisines } from "@/lib/subcuisine";
 import { mergeSponsoredFirst, type SponsoredRestaurant } from "@/lib/sponsored";
 import { priceLevelToSymbol } from "@/lib/google-places";
@@ -36,10 +35,10 @@ interface MatchRevealProps {
 
 function mealTimeHeading(): string {
   const hour = new Date().getHours();
-  if (hour < 11) return "Breakfast is Decided!";
-  if (hour < 12) return "Brunch is Decided!";
-  if (hour < 17) return "Lunch is Decided!";
-  return "Dinner is Decided!";
+  if (hour < 11) return "Breakfast is decided.";
+  if (hour < 12) return "Brunch is decided.";
+  if (hour < 17) return "Lunch is decided.";
+  return "Dinner is decided.";
 }
 
 function titleCase(id: string): string {
@@ -77,7 +76,6 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
   // the room's real matched_subcuisine_id, so it must not be treated as
   // server truth anywhere else this component reasons about the room.
   const [skipRefine, setSkipRefine] = useState(false);
-  const emoji = CUISINE_EMOJI[cuisineId] ?? "🍽️";
   const cuisineName = titleCase(cuisineId.replace(/^ai-/, "").replace(/-/g, " "));
   const needsRefine = CUISINES_WITH_REFINE_LAYER.has(cuisineId);
 
@@ -335,14 +333,8 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
         >
           <Heart className="w-10 h-10 text-[var(--fs-on-ink)] fill-current" />
         </div>
-        <p
-          className="font-display text-[length:var(--fs-t-label)] font-bold uppercase tracking-[var(--fs-tracking-eyebrow)] text-[var(--fs-gold)] animate-celebration-rise"
-          style={{ "--stagger-delay": "0.3s" } as React.CSSProperties}
-        >
-          Unanimous
-        </p>
         <h1
-          className="mt-2 font-display text-4xl md:text-5xl font-extrabold uppercase tracking-[-.03em] text-[var(--fs-on-ink)] animate-celebration-rise"
+          className="mt-2 font-display text-4xl md:text-5xl font-bold tracking-[-.04em] text-[var(--fs-on-ink)] animate-celebration-rise"
           style={{ "--stagger-delay": "0.35s" } as React.CSSProperties}
         >
           {mealTimeHeading()}
@@ -352,7 +344,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
           style={{ "--stagger-delay": "0.5s" } as React.CSSProperties}
         >
           You all want{" "}
-          <span className="font-headline font-semibold text-[var(--fs-gold)]">{cuisineName}</span> {emoji}!
+          <span className="font-headline font-semibold text-[var(--fs-gold)]">{cuisineName}</span>!
         </p>
         {room && (
           <p
@@ -499,7 +491,7 @@ export function MatchReveal({ cuisineId, roomCode }: MatchRevealProps) {
                       alt=""
                       aria-hidden="true"
                       draggable={false}
-                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-[var(--fs-ease-out)] group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">

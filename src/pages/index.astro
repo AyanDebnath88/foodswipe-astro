@@ -78,7 +78,7 @@ const words = (s: string) => s.split(" ");
   <div class="fs-glass pointer-events-none fixed bottom-5 left-8 z-20 hidden items-center gap-3 rounded-[var(--fs-r-pill)] px-4 py-2 font-body text-xs text-[var(--fs-text-4)] lg:flex" aria-hidden="true">
     <span class="tabular-nums"><span id="hud-num" class="font-semibold text-[var(--fs-on-ink)]">01</span> / 05</span>
     <span class="relative h-px w-24 overflow-hidden bg-[var(--fs-line-strong)]">
-      <span id="hud-bar" class="absolute inset-0 origin-left scale-x-0 bg-[var(--fs-terracotta)]"></span>
+      <span id="hud-bar" class="absolute inset-0 origin-left scale-x-0 bg-[var(--fs-gold)]"></span>
     </span>
     <span id="hud-label">Start</span>
   </div>
@@ -104,7 +104,6 @@ const words = (s: string) => s.split(" ");
     {steps.map((s) => (
       <section data-label={s.label} class="chapter flex min-h-[120vh] items-end px-4 pb-16 pt-24 sm:px-6 lg:items-center lg:px-8 lg:pb-24">
         <div class="copy fs-glass fs-glass-border grid w-full max-w-[32rem] gap-4 rounded-[var(--fs-r-2xl)] p-6 sm:p-8 lg:ml-[4vw]">
-          <span class="font-body text-[13px] font-semibold text-[var(--fs-text-4)]">{s.label}</span>
           <h2 class="fill-words font-display text-[clamp(2.1rem,4.4vw,3.5rem)] font-bold leading-[1] tracking-[-.035em] text-[var(--fs-on-ink)]">
             {words(s.title).map((w) => <><span class="w">{w}</span> </>)}
           </h2>

@@ -78,11 +78,12 @@ export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCar
   const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => endDrag(e, false);
 
   const rotation = pos.x / 20;
-  const transform = `translate(${pos.x}px, ${pos.y}px) rotate(${rotation}deg) scale(${isDragging ? 1.05 : 1})`;
-
-  let animationClass = "";
-  if (exitDirection === "left") animationClass = "animate-swipe-out-left";
-  if (exitDirection === "right") animationClass = "animate-swipe-out-right";
+  // Exit is a transition to an off-screen pose, so the card leaves from
+  // wherever the finger let go instead of snapping back to centre first.
+  const exitDir = exitDirection === "right" ? 1 : exitDirection === "left" ? -1 : 0;
+  const transform = exitDir
+    ? `translate(${exitDir * 150}%, ${pos.y}px) rotate(${exitDir * 20}deg) scale(1)`
+    : `translate(${pos.x}px, ${pos.y}px) rotate(${rotation}deg) scale(${isDragging ? 1.05 : 1})`;
 
   return (
     <div
@@ -93,13 +94,14 @@ export function DishCard({ dish, cuisineId, onSwipe, isActive, zIndex }: DishCar
       onPointerCancel={handlePointerCancel}
       style={{
         transform,
-        transition: isDragging ? "none" : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+        opacity: exitDir ? 0 : 1,
+        transition: isDragging ? "none" : "transform 300ms var(--fs-ease-out), opacity 300ms var(--fs-ease-out)",
         zIndex,
         touchAction: isActive ? "none" : "auto",
       }}
       className={`absolute w-full h-full max-w-sm md:max-w-[var(--fs-card-max)] max-h-72 md:max-h-96 rounded-[var(--fs-r-2xl)] shadow-[var(--fs-e-2)] overflow-hidden bg-[var(--fs-ink)] ${
         isActive ? "cursor-grab" : ""
-      } ${animationClass}`}
+      }`}
     >
       <div className="relative w-full h-full flex flex-col">
         {dishImage ? (

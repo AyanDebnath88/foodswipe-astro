@@ -19,7 +19,7 @@ if (!cuisine || !roomCode || roomCode.trim().length !== 4) {
 ---
 
 <BaseLayout title="It's a Match! · Food Swipe" description="Your group matched on a cuisine.">
-  <div class="min-h-screen bg-background">
+  <div class="min-h-screen pb-[140px] lg:pb-12">
     <AppHeader roomCode={roomCode} />
     <MatchReveal cuisineId={cuisine} roomCode={roomCode} client:load />
   </div>

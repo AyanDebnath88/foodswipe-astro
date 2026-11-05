@@ -132,7 +132,7 @@ export function LoginForm() {
       <Button
         type="button"
         variant="outline"
-        className="w-full h-12 gap-3 text-base font-medium border-2 hover:bg-muted/50 transition-all"
+        className="w-full h-12 gap-3 text-base font-medium border-2 hover:bg-muted/50 transition-colors"
         disabled={isGoogleLoading}
         onClick={handleGoogleSignIn}
       >
